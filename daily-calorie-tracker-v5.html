@@ -1,0 +1,3239 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Daily Calorie Tracker V5</title>
+  <style>
+    :root{
+      --bg0:#0b1020;
+      --bg1:#0f1730;
+      --card: rgba(255,255,255,.06);
+      --card2: rgba(255,255,255,.09);
+      --stroke: rgba(255,255,255,.12);
+      --text:#e9ecff;
+      --muted: rgba(233,236,255,.72);
+      --muted2: rgba(233,236,255,.52);
+      --good:#3ddc97;
+      --warn:#ffcc66;
+      --bad:#ff6b6b;
+      --shadow: 0 18px 50px rgba(0,0,0,.35);
+      --radius: 18px;
+      --radius2: 14px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+    *{box-sizing:border-box}
+    html{
+      min-height:100%;
+      background-color: var(--bg0);
+      background-image:
+        radial-gradient(1200px 600px at 15% 10%, rgba(120,76,255,.25), transparent 60%),
+        radial-gradient(900px 520px at 85% 20%, rgba(61,220,151,.18), transparent 55%),
+        radial-gradient(800px 520px at 60% 90%, rgba(255,204,102,.16), transparent 60%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+      background-attachment: fixed;
+      background-repeat:no-repeat;
+      background-size:cover;
+    }
+    body{
+      margin:0;
+      min-height:100%;
+      font-family:var(--sans);
+      color:var(--text);
+      background: transparent;
+    }
+
+    .wrap{ max-width:1240px; margin:0 auto; padding:28px 18px 42px; }
+    .topbar{ display:flex; gap:14px; align-items:center; justify-content:space-between; margin-bottom:18px; }
+    .brand{ display:flex; gap:12px; align-items:center; }
+    .logo{
+      width:40px;height:40px;border-radius:14px;
+      background: linear-gradient(135deg, rgba(120,76,255,.9), rgba(61,220,151,.85));
+      box-shadow: var(--shadow);
+      border:1px solid rgba(255,255,255,.16);
+    }
+    h1{ margin:0; font-size:18px; letter-spacing:.2px; font-weight:900; }
+    .subtitle{ margin:2px 0 0; color:var(--muted2); font-size:12px; }
+
+    .actions{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .authUser{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 10px;
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:12px;
+      background: rgba(255,255,255,.04);
+      font-size:12px;
+      font-weight:800;
+      max-width: 320px;
+    }
+    .authUser b{
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+      max-width: 220px;
+    }
+    .hidden{ display:none !important; }
+    .btn{
+      border:1px solid var(--stroke);
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
+      color:var(--text);
+      padding:10px 12px;
+      border-radius:12px;
+      cursor:pointer;
+      box-shadow: 0 10px 24px rgba(0,0,0,.22);
+      transition: transform .08s ease, border-color .12s ease, background .12s ease;
+      font-weight:800;
+      font-size:13px;
+      display:inline-flex; align-items:center; gap:8px;
+      user-select:none;
+    }
+    .btn:hover{ transform: translateY(-1px); border-color: rgba(255,255,255,.22); }
+    .btn:active{ transform: translateY(0px); }
+    .btn.secondary{ background: rgba(255,255,255,.05); box-shadow:none; }
+    .btn.danger{ border-color: rgba(255,107,107,.35); background: rgba(255,107,107,.12); }
+    .btn:disabled{ opacity:.45; cursor:not-allowed; transform:none; }
+
+    .grid{ display:grid; grid-template-columns: 1.1fr .9fr; gap:16px; align-items:start; }
+    @media (max-width: 980px){ .grid{grid-template-columns:1fr} }
+
+    .card{
+      background: var(--card);
+      border:1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .card .hd{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      padding:16px 16px 12px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), transparent);
+      gap:12px;
+    }
+    .card .hd h2{ margin:0; font-size:14px; font-weight:950; letter-spacing:.2px; }
+    .card .hd .hint{ margin-top:4px; font-size:12px; color:var(--muted2); line-height:1.35; max-width:720px; }
+    .card .bd{ padding:16px; }
+
+    .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .field{ display:flex; flex-direction:column; gap:6px; min-width:180px; flex:1; }
+    label{ font-size:12px; color:var(--muted2); font-weight:900; letter-spacing:.15px; }
+    input[type="number"], input[type="text"], input[type="date"], select{
+      width:100%;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.18);
+      color:var(--text);
+      padding:10px 10px;
+      outline:none;
+      font-size:13px;
+    }
+    input[type="number"]{ font-variant-numeric: tabular-nums; }
+    .helper{ margin-top:8px; color:var(--muted2); font-size:12px; line-height:1.4; }
+
+    .summary{
+      display:grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap:12px;
+      margin-bottom:14px;
+    }
+    @media (max-width:820px){ .summary{grid-template-columns:1fr 1fr} }
+    @media (max-width:520px){ .summary{grid-template-columns:1fr} }
+
+    .metric{
+      background: var(--card2);
+      border:1px solid rgba(255,255,255,.10);
+      border-radius: var(--radius2);
+      padding:12px 12px 10px;
+      min-height: 118px;
+    }
+    .metric .label{
+      color:var(--muted2);
+      font-size:12px;
+      margin-bottom:6px;
+      display:flex; justify-content:space-between; align-items:center;
+      gap:10px;
+    }
+    .metric .value{
+      font-size:20px;
+      font-weight:950;
+      letter-spacing:.2px;
+      font-variant-numeric: tabular-nums;
+    }
+    .metric .value small{
+      font-size:12px;
+      color:var(--muted2);
+      font-weight:800;
+      margin-left:6px;
+    }
+    .pill{
+      padding:3px 8px;
+      border-radius:999px;
+      font-size:11px;
+      border:1px solid rgba(255,255,255,.12);
+      color:var(--muted);
+      background: rgba(0,0,0,.14);
+      white-space:nowrap;
+    }
+    .pill.good{ border-color: rgba(61,220,151,.30); color: rgba(61,220,151,.95); background: rgba(61,220,151,.08); }
+    .pill.bad{ border-color: rgba(255,107,107,.30); color: rgba(255,107,107,.95); background: rgba(255,107,107,.09); }
+    .pill.warn{ border-color: rgba(255,204,102,.30); color: rgba(255,204,102,.95); background: rgba(255,204,102,.09); }
+
+    .miniList{
+      margin-top:10px;
+      font-size:12px;
+      color: var(--muted);
+      line-height:1.35;
+      max-height: 120px;
+      overflow: auto;
+      position: relative;
+      padding-right: 6px;
+    }
+    .miniList:after{
+      display:none;
+    }
+    .miniItem{
+      display:flex; justify-content:space-between; gap:10px;
+      font-variant-numeric: tabular-nums;
+    }
+    .miniItem .left{
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+      max-width: 70%;
+    }
+    .miniItem b{ white-space:nowrap; }
+
+    .divider{ height:1px; background: rgba(255,255,255,.08); margin:12px 0; }
+
+    /* Quick add */
+    .quickAdd{
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.04);
+      border-radius: 18px;
+      overflow:visible;
+      position:relative;
+      z-index:20;
+      margin-bottom:12px;
+    }
+    .quickAddTop{
+      padding:12px 12px 10px;
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+      background: linear-gradient(180deg, rgba(255,255,255,.05), transparent);
+    }
+    .quickAddTop b{ font-size:13px; letter-spacing:.2px; }
+    .quickAddForm{
+      display:grid;
+      grid-template-columns: .9fr 1.4fr .6fr .7fr auto;
+      gap:10px;
+      padding:12px;
+      align-items:end;
+      overflow: visible;
+      position: relative;
+    }
+    .quickAddForm .btn{ min-width: 140px; justify-content:center; }
+    .quickAddForm .btn.addPrimary{
+      min-height: 42px;
+      font-size: 14px;
+      font-weight: 900;
+    }
+    .photoForm{
+      grid-template-columns: 1.2fr .7fr 1fr auto;
+    }
+    .photoPreview{
+      width:100%;
+      max-height:240px;
+      object-fit:contain;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.1);
+      background: rgba(0,0,0,.18);
+      margin-top:10px;
+      display:none;
+    }
+    .photoStatus{
+      margin-top:10px;
+      padding:10px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.1);
+      background: rgba(0,0,0,.16);
+      font-size:12px;
+      color: var(--muted);
+      min-height: 40px;
+    }
+
+    @media (max-width: 900px){
+      .quickAddForm{ grid-template-columns: 1fr 1fr; }
+      .quickAddForm .btn{ grid-column: 1 / -1; justify-content:center; }
+      .photoForm{ grid-template-columns:1fr; }
+      .photoForm .btn{ grid-column:auto; }
+    }
+
+    /* Autocomplete */
+    .acWrap{ position:relative; }
+    .acList{
+      position:absolute;
+      top: calc(100% + 6px);
+      left:0; right:0;
+      z-index:50;
+      border-radius: 14px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(15, 22, 44, .96);
+      box-shadow: 0 25px 70px rgba(0,0,0,.55);
+      overflow:hidden;
+      display:none;
+      max-height: 260px;
+      overflow:auto;
+    }
+    .acItem{
+      padding:10px 10px;
+      cursor:pointer;
+      border-bottom:1px solid rgba(255,255,255,.06);
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      align-items:flex-start;
+    }
+    .acItem:hover, .acItem.active{ background: rgba(255,255,255,.06); }
+    .acItem b{ font-size:12.5px; }
+    .acItem .meta{ color:var(--muted2); font-size:11px; white-space:nowrap; }
+
+    /* Improve autocomplete readability (no clipping) */
+    .acLeft{ flex:1; min-width:0; }
+    .acName{ display:block; white-space:normal; overflow-wrap:anywhere; line-height:1.25; }
+    .acSub{ white-space:normal; overflow-wrap:anywhere; }
+
+
+    .errorLine{
+      margin-top:10px;
+      padding:10px 12px;
+      border-radius: 14px;
+      border:1px dashed rgba(255,204,102,.35);
+      background: rgba(255,204,102,.08);
+      color: rgba(255,204,102,.95);
+      font-size:12px;
+      display:none;
+    }
+
+    /* Consumed table */
+    .tableWrap{
+      overflow:auto;
+      background: rgba(0,0,0,.10);
+      border-radius: 18px;
+      border:1px solid rgba(255,255,255,.10);
+    }
+    table{
+      width:100%;
+      border-collapse: collapse;
+      font-size:12.5px;
+      min-width: 780px;
+      color: var(--text);
+    }
+    thead th{
+      text-align:left;
+      padding:10px 10px;
+      color: var(--muted2);
+      font-size:12px;
+      background: rgba(255,255,255,.06);
+      border-bottom:1px solid rgba(255,255,255,.08);
+      white-space:nowrap;
+    }
+    tbody td{
+      padding:10px 10px;
+      border-bottom:1px solid rgba(255,255,255,.06);
+      vertical-align:top;
+    }
+    tbody tr:hover td{ background: rgba(255,255,255,.03); }
+    .tdRight{ text-align:right; font-variant-numeric: tabular-nums; white-space:nowrap; }
+    .smallMuted{ color: var(--muted2); font-size:12px; }
+    .badge{
+      font-size:11px;
+      padding:3px 8px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.12);
+      color:var(--muted);
+      background: rgba(0,0,0,.14);
+      display:inline-block;
+      white-space:nowrap;
+    }
+
+    .consumedTableWrap{
+      max-height: 360px;
+    }
+
+    .metric.over{
+      border-color: rgba(255,107,107,.26);
+      background: rgba(255,107,107,.08);
+    }
+    .metric.over .value{
+      color: rgba(255,107,107,.98);
+    }
+    .metric.over .value small{
+      color: rgba(255,107,107,.85);
+    }
+    .macroLine{
+      display:flex;
+      justify-content:space-between;
+      gap:8px;
+      font-size:12px;
+      margin-top:4px;
+      line-height:1.3;
+    }
+    .macroLine .r{
+      text-align:right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .macroGoalBox{
+      display:grid;
+      gap:10px;
+    }
+    .macroRow{
+      display:grid;
+      grid-template-columns: 1fr auto auto auto auto;
+      gap:10px;
+      align-items:center;
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:12px;
+      padding:10px;
+      background: rgba(255,255,255,.03);
+    }
+    .macroRow .mName{
+      font-weight:900;
+      font-size:13px;
+    }
+    .macroRow .mVal{
+      font-variant-numeric: tabular-nums;
+      font-size:13px;
+      color: var(--muted);
+      min-width: 92px;
+      text-align:right;
+    }
+    .macroRow .mPct{
+      font-variant-numeric: tabular-nums;
+      font-size:13px;
+      font-weight:900;
+      min-width: 48px;
+      text-align:right;
+    }
+    .macroRow .btn{
+      min-width: 36px;
+      height: 32px;
+      padding: 0;
+      justify-content:center;
+    }
+    @media (max-width:640px){
+      .macroRow{
+        grid-template-columns: 1fr auto auto auto auto;
+      }
+      .macroRow .mVal{
+        min-width: 70px;
+      }
+    }
+
+    /* Modal */
+    .modalOverlay{
+      position:fixed; inset:0;
+      background: rgba(0,0,0,.55);
+      backdrop-filter: blur(10px);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding:18px;
+      z-index:1000;
+    }
+    .modal{
+      width:min(1100px, 98vw);
+      max-height: 88vh;
+      overflow:auto;
+      border-radius: 20px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(15, 22, 44, .92);
+      box-shadow: 0 35px 90px rgba(0,0,0,.6);
+      color: var(--text);
+    }
+    .modalTop{
+      position:sticky; top:0;
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(15,22,44,.92));
+      border-bottom:1px solid rgba(255,255,255,.10);
+      padding:14px 14px;
+      display:flex; align-items:center; justify-content:space-between;
+      gap:10px;
+      z-index:5;
+    }
+    .modalTop h3{ margin:0; font-size:14px; font-weight:950; letter-spacing:.2px; }
+    .modalBody{ padding:14px; }
+
+    .twoCol{
+      display:grid;
+      grid-template-columns: 1.05fr .95fr;
+      gap:14px;
+      align-items:start;
+    }
+    @media (max-width: 960px){ .twoCol{grid-template-columns:1fr} }
+
+    /* Calendar */
+    .calWrap{
+      border-radius: 18px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.04);
+      overflow:hidden;
+    }
+    .calTop{
+      padding:12px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.04);
+    }
+    .calTop b{ font-size:13px; }
+    .calGrid{
+      display:grid;
+      grid-template-columns: repeat(7, 1fr);
+    }
+    .calDow{
+      padding:10px 10px;
+      border-bottom:1px solid rgba(255,255,255,.06);
+      color: var(--muted2);
+      font-size:11px;
+      font-weight:900;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+      background: rgba(255,255,255,.03);
+    }
+    .calCell{
+      padding:10px;
+      min-height:78px;
+      border-bottom:1px solid rgba(255,255,255,.06);
+      border-right:1px solid rgba(255,255,255,.06);
+      cursor:pointer;
+      position:relative;
+      background: rgba(0,0,0,.08);
+    }
+    .calCell:nth-child(7n){ border-right:none; }
+    .calCell:hover{ background: rgba(255,255,255,.04); }
+    .calCell.dim{ opacity:.55; }
+    .calCell .dayNum{ font-weight:950; font-size:12px; }
+    .calCell .kcal{ margin-top:6px; font-size:12px; color:var(--muted); font-variant-numeric: tabular-nums; }
+    .calCell .dot{
+      position:absolute;
+      top:10px; right:10px;
+      width:10px; height:10px;
+      border-radius:999px;
+      background: rgba(255,255,255,.18);
+      border:1px solid rgba(255,255,255,.14);
+    }
+    .calCell .dot.good{ background: rgba(61,220,151,.85); border-color: rgba(61,220,151,.45); }
+    .calCell .dot.bad{ background: rgba(255,107,107,.85); border-color: rgba(255,107,107,.45); }
+    .calCell .dot.warn{ background: rgba(255,204,102,.85); border-color: rgba(255,204,102,.45); }
+
+    .footerNote{ margin-top:10px; color:var(--muted2); font-size:12px; line-height:1.45; }
+
+    .authGate{
+      margin-bottom:16px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.05);
+      border-radius: 16px;
+      padding: 14px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .authGate .txt{ font-size:13px; color:var(--muted); }
+    .authChoice{
+      display:flex;
+      gap:10px;
+      margin-top:10px;
+      flex-wrap:wrap;
+    }
+    .authPane{
+      margin-top:12px;
+    }
+    .authPane .card{
+      box-shadow:none;
+    }
+    .authBack{
+      margin-top:10px;
+    }
+
+    body.mobile-mode .wrap{
+      max-width: 860px;
+      padding: 14px 10px 30px;
+    }
+    body.mobile-mode .topbar{
+      flex-direction:column;
+      align-items:flex-start;
+    }
+    body.mobile-mode .actions{
+      width:100%;
+    }
+    body.mobile-mode .btn{
+      min-height:44px;
+    }
+    body.mobile-mode .grid{
+      grid-template-columns:1fr;
+      gap:12px;
+    }
+    body.mobile-mode .summary{
+      grid-template-columns:1fr;
+    }
+    body.mobile-mode table{
+      min-width: 680px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand">
+        <div class="logo" aria-hidden="true"></div>
+        <div>
+          <h1>Daily Calorie Tracker V5</h1>
+          <div class="subtitle">Supabase auth + data • Mobile mode • Calorie + macro goals • Photo-assisted logging</div>
+        </div>
+      </div>
+      <div class="actions">
+        <div class="authUser"><span>User:</span> <b id="userBadge">Not signed in</b></div>
+        <button class="btn secondary" id="btnAuth">🔐 Sign in / Sign up</button>
+        <button class="btn secondary hidden" id="btnSignOut">🚪 Sign out</button>
+        <button class="btn secondary" id="btnMobileMode">📱 Mobile view</button>
+        <button class="btn secondary" id="btnGoals">🎯 Goals</button>
+        <button class="btn secondary" id="btnHistory">🗓️ Calendar history</button>
+        <button class="btn secondary" id="btnIngredients">🧾 Ingredient database</button>
+        <button class="btn secondary" id="btnExport">⬇️ Export my data</button>
+        <button class="btn secondary" id="btnImport">⬆️ Import my data</button>
+        <button class="btn danger" id="btnReset">🗑️ Reset</button>
+        <input type="file" id="importFile" accept="application/json" style="display:none" />
+      </div>
+    </div>
+
+    <div class="authGate" id="authGate">
+      <div class="txt">Your records are private per account. Sign in to access your daily logs, goals, and history.</div>
+      <button class="btn" id="btnAuthGate">Sign in to continue</button>
+    </div>
+
+    <div class="grid" id="appGrid">
+      <!-- Main -->
+      <section class="card">
+        <div class="hd">
+          <div>
+            <h2>Day view</h2>
+            <div class="hint">
+              Add <b>one item at a time</b>. After you add it, the form clears and the item appears under “Consumed”.
+              Units: g/kg/oz/lb • ml/l/tsp/tbsp/cup • piece/slice/serving (if defined per ingredient).
+            </div>
+          </div>
+          <div style="min-width:260px">
+            <div class="field" style="min-width:260px">
+              <label for="datePicker">Date</label>
+              <input type="date" id="datePicker" />
+            </div>
+          </div>
+        </div>
+
+        <div class="bd">
+          <div class="summary">
+            <div class="metric">
+              <div class="label">
+                <span>Goal</span>
+                <span class="pill">kcal</span>
+              </div>
+              <div class="value"><span id="goalDisplay">—</span><small>kcal</small></div>
+              <div class="helper">Adjust in <b>Goals</b>.</div>
+            </div>
+
+            <div class="metric" id="consumedMetric">
+              <div class="label">
+                <span>Consumed</span>
+                <span id="statusPill" class="pill">—</span>
+              </div>
+              <div class="value"><span id="consumedDisplay">—</span><small>kcal</small></div>
+              <div class="helper">Remaining to consume: <b id="remainingInline">—</b> kcal</div>
+              <div class="miniList" id="miniConsumed"></div>
+            </div>
+
+            <div class="metric" id="macroMetric">
+              <div class="label"><span>Macros</span><span class="pill">g</span></div>
+              <div class="value" style="font-size:14px; line-height:1.4">
+                <div class="macroLine"><span class="smallMuted">Protein</span><span class="r"><b id="macroP">0</b>/<b id="macroGoalP">0</b>g • left <b id="macroRemP">0</b>g</span></div>
+                <div class="macroLine"><span class="smallMuted">Carbs</span><span class="r"><b id="macroC">0</b>/<b id="macroGoalC">0</b>g • left <b id="macroRemC">0</b>g</span></div>
+                <div class="macroLine"><span class="smallMuted">Fat</span><span class="r"><b id="macroF">0</b>/<b id="macroGoalF">0</b>g • left <b id="macroRemF">0</b>g</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="quickAdd">
+            <div class="quickAddTop">
+              <div>
+                <b>Quick add</b>
+                <div class="smallMuted">Pick from suggestions (unknown items cannot be added).</div>
+              </div>
+              <div class="smallMuted" id="defaultGoalLine"></div>
+            </div>
+
+            <div class="quickAddForm">
+              <div class="field">
+                <label>Meal</label>
+                <select id="mealSelect">
+                  <option value="breakfast">Breakfast</option>
+                  <option value="lunch">Lunch</option>
+                  <option value="dinner">Dinner</option>
+                  <option value="snack">Snack</option>
+                </select>
+              </div>
+
+              <div class="field acWrap">
+                <label>Ingredient</label>
+                <input type="text" id="ingInput" placeholder="Type to search… (e.g., chicken breast, cooked)" autocomplete="off" />
+                <div class="acList" id="acList"></div>
+              </div>
+
+              <div class="field">
+                <label>Amount</label>
+                <input type="number" id="amtInput" min="0" step="0.1" placeholder="e.g., 180" />
+              </div>
+
+              <div class="field">
+                <label>Unit</label>
+                <select id="unitSelect"></select>
+              </div>
+
+              <button class="btn addPrimary" id="btnAdd">➕ Add to meal</button>
+            </div>
+          </div>
+
+          <div class="quickAdd" style="margin-top:10px">
+            <div class="quickAddTop">
+              <div>
+                <b>Photo add</b>
+                <div class="smallMuted">Upload a food photo, analyze it, edit recognized items, then add selected rows to consumption.</div>
+              </div>
+              <div class="smallMuted">Editable before save</div>
+            </div>
+            <div class="quickAddForm photoForm">
+              <div class="field">
+                <label for="foodPhotoInput">Food picture</label>
+                <input id="foodPhotoInput" type="file" accept="image/*" capture="environment" />
+              </div>
+              <div class="field">
+                <label for="photoMealSelect">Default meal</label>
+                <select id="photoMealSelect">
+                  <option value="breakfast">Breakfast</option>
+                  <option value="lunch">Lunch</option>
+                  <option value="dinner">Dinner</option>
+                  <option value="snack">Snack</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="aiKeyInput">OpenAI API key (optional save)</label>
+                <input id="aiKeyInput" type="password" placeholder="sk-..." autocomplete="off" />
+              </div>
+              <button class="btn" id="btnAnalyzePhoto" type="button">🖼️ Analyze photo</button>
+            </div>
+            <div class="photoStatus" id="photoStatus">No photo analyzed yet.</div>
+            <img id="photoPreview" class="photoPreview" alt="Food preview" />
+
+            <div id="photoResultsWrap" class="hidden" style="margin-top:10px">
+              <div class="row" style="justify-content:space-between">
+                <div class="smallMuted">Recognized items (edit ingredient/size, or delete wrong rows).</div>
+                <div class="row">
+                  <button class="btn secondary" id="btnAddPhotoRow" type="button">+ Add row</button>
+                  <button class="btn secondary" id="btnClearPhotoRows" type="button">Clear recognized</button>
+                  <button class="btn" id="btnCommitPhotoRows" type="button">Add recognized to consumed</button>
+                </div>
+              </div>
+              <div class="tableWrap" style="margin-top:10px">
+                <table style="min-width:760px">
+                  <thead>
+                    <tr>
+                      <th>Meal</th>
+                      <th>Ingredient</th>
+                      <th class="tdRight">Amount</th>
+                      <th>Unit</th>
+                      <th class="tdRight">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="photoRowsBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="errorLine" id="errorBox"></div>
+
+          <div class="divider"></div>
+
+          <div class="row" style="justify-content:space-between">
+            <div>
+              <label style="display:block">Consumed items</label>
+              <div class="smallMuted">Today’s list. Remove items if needed.</div>
+            </div>
+            <button class="btn secondary" id="btnClearDay">🧹 Clear day items</button>
+          </div>
+
+          <div class="tableWrap consumedTableWrap" style="margin-top:12px">
+            <table>
+              <thead>
+                <tr>
+                  <th>Meal</th>
+                  <th>Ingredient</th>
+                  <th class="tdRight">Amount</th>
+                  <th class="tdRight">kcal</th>
+                  <th class="tdRight">P</th>
+                  <th class="tdRight">C</th>
+                  <th class="tdRight">F</th>
+                  <th class="tdRight">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="consumedBody"></tbody>
+            </table>
+          </div>
+
+          <div class="footerNote">
+            Tip: If a unit like <b>piece</b> isn’t available for an ingredient, set grams-per-piece in the Ingredient DB.
+          </div>
+        </div>
+      </section>
+
+      <!-- Side -->
+      <aside class="card">
+        <div class="hd">
+          <div>
+            <h2>Quick search</h2>
+            <div class="hint">Search your ingredient DB (calories + macros per 100g / 100ml).</div>
+          </div>
+          <div class="pill">localStorage</div>
+        </div>
+        <div class="bd">
+          <div class="row">
+            <div class="field">
+              <label for="quickSearch">Ingredient search</label>
+              <input id="quickSearch" type="text" placeholder="Type to search…" />
+              <div class="helper">Edit ingredients in the database screen.</div>
+            </div>
+          </div>
+
+          <div class="tableWrap" style="margin-top:12px">
+            <table style="min-width: 640px">
+              <thead>
+                <tr>
+                  <th>Ingredient</th>
+                  <th class="tdRight">kcal/100</th>
+                  <th class="tdRight">P</th>
+                  <th class="tdRight">C</th>
+                  <th class="tdRight">F</th>
+                  <th class="tdRight">Base</th>
+                </tr>
+              </thead>
+              <tbody id="quickDbBody"></tbody>
+            </table>
+          </div>
+
+          <div class="footerNote">
+            Want a truly large list? Import a bigger JSON dataset (same schema) via Import.
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- AUTH MODAL -->
+  <div class="modalOverlay" id="modalAuth">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="User access">
+      <div class="modalTop">
+        <h3>User Access</h3>
+        <div class="row">
+          <button class="btn secondary" id="btnCloseAuth">✕ Close</button>
+        </div>
+      </div>
+      <div class="modalBody">
+        <div class="card" style="box-shadow:none">
+          <div class="hd">
+            <div>
+              <h2>Supabase connection</h2>
+              <div class="hint">Users, ingredients, goals, and records are stored in Supabase for V5.</div>
+            </div>
+          </div>
+          <div class="bd">
+            <div class="field">
+              <label for="supabaseUrlInput">Supabase URL</label>
+              <input id="supabaseUrlInput" type="text" placeholder="https://YOUR-PROJECT.supabase.co" />
+            </div>
+            <div class="field" style="margin-top:10px">
+              <label for="supabaseAnonInput">Supabase anon key</label>
+              <input id="supabaseAnonInput" type="password" placeholder="eyJ..." autocomplete="off" />
+            </div>
+          </div>
+        </div>
+
+        <div id="authChoicePane" class="authChoice">
+          <button class="btn" id="btnChooseSignIn" type="button">Sign in</button>
+          <button class="btn secondary" id="btnChooseSignUp" type="button">Sign up</button>
+        </div>
+
+        <div id="authSignInPane" class="authPane hidden">
+          <div class="card">
+            <div class="hd">
+              <div>
+                <h2>Sign in</h2>
+                <div class="hint">Access your private Supabase-backed records.</div>
+              </div>
+            </div>
+            <div class="bd">
+              <div class="field">
+                <label for="signInEmail">Email</label>
+                <input id="signInEmail" type="text" autocomplete="username" placeholder="you@email.com" />
+              </div>
+              <div class="field" style="margin-top:10px">
+                <label for="signInPassword">Password</label>
+                <input id="signInPassword" type="password" autocomplete="current-password" placeholder="Enter password" />
+              </div>
+              <div class="row" style="margin-top:12px">
+                <button class="btn" id="btnSignIn" type="button">Sign in</button>
+              </div>
+            </div>
+          </div>
+          <button class="btn secondary authBack" id="btnAuthBackFromSignIn" type="button">Back</button>
+        </div>
+
+        <div id="authSignUpPane" class="authPane hidden">
+          <div class="card">
+            <div class="hd">
+              <div>
+                <h2>Sign up</h2>
+                <div class="hint">Create a Supabase user for your private database.</div>
+              </div>
+            </div>
+            <div class="bd">
+              <div class="field">
+                <label for="signUpEmail">Email</label>
+                <input id="signUpEmail" type="text" autocomplete="username" placeholder="you@email.com" />
+              </div>
+              <div class="field" style="margin-top:10px">
+                <label for="signUpPassword">Password</label>
+                <input id="signUpPassword" type="password" autocomplete="new-password" placeholder="At least 6 characters" />
+              </div>
+              <div class="field" style="margin-top:10px">
+                <label for="signUpPassword2">Confirm password</label>
+                <input id="signUpPassword2" type="password" autocomplete="new-password" placeholder="Repeat password" />
+              </div>
+              <div class="row" style="margin-top:12px">
+                <button class="btn" id="btnSignUp" type="button">Create account</button>
+              </div>
+            </div>
+          </div>
+          <button class="btn secondary authBack" id="btnAuthBackFromSignUp" type="button">Back</button>
+        </div>
+        <div class="footerNote" id="authStatusLine" style="margin-top:12px">Sign in or create an account to start.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GOALS MODAL -->
+  <div class="modalOverlay" id="modalGoals">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Goals">
+      <div class="modalTop">
+        <h3>Goals</h3>
+        <div class="row">
+          <button class="btn secondary" id="btnCloseGoals">✕ Close</button>
+        </div>
+      </div>
+      <div class="modalBody">
+        <div class="twoCol">
+          <div class="card" style="box-shadow:none">
+            <div class="hd">
+              <div>
+                <h2>Default goal</h2>
+                <div class="hint">Applied to all dates unless you set an override for a specific date.</div>
+              </div>
+            </div>
+            <div class="bd">
+              <div class="field">
+                <label for="defaultGoalInput">Default daily goal (kcal)</label>
+                <input id="defaultGoalInput" type="number" min="0" step="1" placeholder="e.g., 2000" />
+              </div>
+              <div class="footerNote">This is your “fixed” goal.</div>
+            </div>
+          </div>
+
+          <div class="card" style="box-shadow:none">
+            <div class="hd">
+              <div>
+                <h2>Date override</h2>
+                <div class="hint">Optional. Useful for special days. Current date: <b id="goalsDateLabel">—</b></div>
+              </div>
+            </div>
+            <div class="bd">
+              <div class="field">
+                <label for="goalOverrideInput">Override goal for selected date (kcal)</label>
+                <input id="goalOverrideInput" type="number" min="0" step="1" placeholder="Leave empty to use default" />
+              </div>
+              <div class="row" style="margin-top:10px">
+                <button class="btn secondary" id="btnClearOverride">Clear override</button>
+              </div>
+              <div class="footerNote">If empty, the app uses your default goal.</div>
+            </div>
+          </div>
+        </div>
+        <div class="card" style="box-shadow:none; margin-top:14px">
+          <div class="hd">
+            <div>
+              <h2>Macro goals</h2>
+              <div class="hint">Default healthy split starts at 30% protein, 40% carbs, 30% fat. Use +/- to rebalance while staying inside your calorie goal.</div>
+            </div>
+          </div>
+          <div class="bd">
+            <div class="footerNote" id="macroGoalInfo">Goal calories for macro targets: —</div>
+            <div class="macroGoalBox" style="margin-top:10px">
+              <div class="macroRow">
+                <div class="mName">Protein</div>
+                <button class="btn secondary" id="macroPMinus" type="button">-</button>
+                <div class="mPct" id="macroGoalPPct">0%</div>
+                <button class="btn secondary" id="macroPPlus" type="button">+</button>
+                <div class="mVal" id="macroGoalPGram">0 g</div>
+              </div>
+              <div class="macroRow">
+                <div class="mName">Carbs</div>
+                <button class="btn secondary" id="macroCMinus" type="button">-</button>
+                <div class="mPct" id="macroGoalCPct">0%</div>
+                <button class="btn secondary" id="macroCPlus" type="button">+</button>
+                <div class="mVal" id="macroGoalCGram">0 g</div>
+              </div>
+              <div class="macroRow">
+                <div class="mName">Fat</div>
+                <button class="btn secondary" id="macroFMinus" type="button">-</button>
+                <div class="mPct" id="macroGoalFPct">0%</div>
+                <button class="btn secondary" id="macroFPlus" type="button">+</button>
+                <div class="mVal" id="macroGoalFGram">0 g</div>
+              </div>
+            </div>
+            <div class="footerNote" id="macroGoalTotalNote" style="margin-top:10px">Total macro calories: —</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INGREDIENT DB MODAL -->
+  <div class="modalOverlay" id="modalIngredients">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Ingredient Database">
+      <div class="modalTop">
+        <h3>Ingredient Database</h3>
+        <div class="row">
+          <button class="btn secondary" id="btnCloseIngredients">✕ Close</button>
+        </div>
+      </div>
+      <div class="modalBody">
+        <div class="twoCol">
+          <div class="card" style="box-shadow:none">
+            <div class="hd">
+              <div>
+                <h2>Search & edit</h2>
+                <div class="hint">Macros are per 100g or per 100ml, depending on base.</div>
+              </div>
+            </div>
+            <div class="bd">
+              <div class="field">
+                <label for="dbSearch">Search</label>
+                <input id="dbSearch" type="text" placeholder="Search ingredients…" />
+              </div>
+
+              <div class="tableWrap" style="margin-top:12px">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Ingredient</th>
+                      <th class="tdRight">kcal/100</th>
+                      <th class="tdRight">P</th>
+                      <th class="tdRight">C</th>
+                      <th class="tdRight">F</th>
+                      <th class="tdRight">Base</th>
+                      <th class="tdRight">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="dbBody"></tbody>
+                </table>
+              </div>
+              <div class="footerNote">
+                Saving an existing name overwrites it.
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="box-shadow:none">
+            <div class="hd">
+              <div>
+                <h2>Add / update ingredient</h2>
+                <div class="hint">Optional conversions enable piece/slice/serving for gram-based ingredients.</div>
+              </div>
+            </div>
+            <div class="bd">
+              <div class="field">
+                <label for="ingName">Ingredient name</label>
+                <input id="ingName" type="text" placeholder="e.g., chicken breast, cooked" />
+              </div>
+
+              <div class="row" style="margin-top:10px">
+                <div class="field" style="max-width:220px">
+                  <label for="ingBase">Base</label>
+                  <select id="ingBase">
+                    <option value="g">per 100g</option>
+                    <option value="ml">per 100ml</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="ingKcal">kcal per 100</label>
+                  <input id="ingKcal" type="number" min="0" step="0.1" placeholder="e.g., 165" />
+                </div>
+              </div>
+
+              <div class="row" style="margin-top:10px">
+                <div class="field">
+                  <label for="ingP">Protein (g) per 100</label>
+                  <input id="ingP" type="number" min="0" step="0.1" placeholder="e.g., 31" />
+                </div>
+                <div class="field">
+                  <label for="ingC">Carbs (g) per 100</label>
+                  <input id="ingC" type="number" min="0" step="0.1" placeholder="e.g., 0" />
+                </div>
+                <div class="field">
+                  <label for="ingF">Fat (g) per 100</label>
+                  <input id="ingF" type="number" min="0" step="0.1" placeholder="e.g., 3.6" />
+                </div>
+              </div>
+
+              <div class="divider"></div>
+
+              <div class="row">
+                <div class="field">
+                  <label for="gPiece">grams per piece (optional)</label>
+                  <input id="gPiece" type="number" min="0" step="0.1" placeholder="e.g., egg ~ 50" />
+                </div>
+                <div class="field">
+                  <label for="gSlice">grams per slice (optional)</label>
+                  <input id="gSlice" type="number" min="0" step="0.1" placeholder="e.g., bread slice ~ 30" />
+                </div>
+                <div class="field">
+                  <label for="gServing">grams per serving (optional)</label>
+                  <input id="gServing" type="number" min="0" step="0.1" placeholder="if you use “serving”" />
+                </div>
+              </div>
+
+              <div class="row" style="margin-top:12px">
+                <button class="btn" id="btnSaveIngredient">💾 Save ingredient</button>
+                <button class="btn secondary" id="btnClearIngredient">🧹 Clear</button>
+              </div>
+
+              <div class="footerNote">
+                You can import a larger dataset via Import.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORY MODAL -->
+  <div class="modalOverlay" id="modalHistory">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Calendar History">
+      <div class="modalTop">
+        <h3>Calendar History</h3>
+        <div class="row">
+          <button class="btn secondary" id="btnCloseHistory">✕ Close</button>
+        </div>
+      </div>
+      <div class="modalBody">
+        <div class="twoCol">
+          <div class="calWrap">
+            <div class="calTop">
+              <button class="btn secondary" id="calPrev" style="padding:8px 10px">←</button>
+              <b id="calTitle">—</b>
+              <button class="btn secondary" id="calNext" style="padding:8px 10px">→</button>
+            </div>
+            <div class="calGrid" id="calGrid"></div>
+          </div>
+
+          <div class="card" style="box-shadow:none">
+            <div class="hd">
+              <div>
+                <h2>Selected day</h2>
+                <div class="hint" id="selHint">Click a day to preview. Clicking also jumps the main view to that day.</div>
+              </div>
+            </div>
+            <div class="bd" id="selDetails">
+              <div class="smallMuted">No day selected.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="footerNote">
+          Legend: green = under goal, red = over goal, yellow = has data but no goal, gray = no data.
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* -----------------------------------------
+   Daily Calorie Tracker (v5)
+   - Supabase auth + data
+   - Mobile mode toggle + responsive layout
+   - Photo-assisted logging
+------------------------------------------*/
+
+const LS_SB_URL = "dct_v5_supabase_url";
+const LS_SB_ANON = "dct_v5_supabase_anon";
+const DATA_TABLE = "dct_user_data";
+const MACRO_KEYS = ["p", "c", "f"];
+const MACRO_CAL_PER_G = { p: 4, c: 4, f: 9 };
+const MACRO_MIN_RATIO = 5;
+const MACRO_STEP_PCT = 2;
+const DEFAULT_MACRO_RATIOS = { p: 30, c: 40, f: 30 };
+
+const el = (id) => document.getElementById(id);
+
+const state = {
+  settings: { defaultGoalKcal: 2000, macroRatios: { ...DEFAULT_MACRO_RATIOS }, mobileMode: false, openaiApiKey: "" },
+  ingredients: {}, // keyLower -> ingredient
+  entries: {},     // date -> { goalOverrideKcal|null, items: [] }
+  currentDate: "",
+  quickSearch: "",
+  calYear: 0,
+  calMonth: 0,
+  photoDrafts: [],
+  auth: {
+    currentUserId: null,
+    currentEmail: ""
+  },
+  sb: {
+    url: "",
+    anonKey: "",
+    client: null
+  }
+};
+
+function todayISO(){
+  const d = new Date();
+  const off = d.getTimezoneOffset();
+  const local = new Date(d.getTime() - off*60*1000);
+  return local.toISOString().slice(0,10);
+}
+function normalizeName(s){
+  return (s || "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+function safeNum(x, def=0){
+  const n = Number(x);
+  return Number.isFinite(n) ? n : def;
+}
+
+function randomId(prefix){
+  return `${prefix}_${Math.random().toString(36).slice(2, 10)}_${Date.now().toString(36)}`;
+}
+function isSignedIn(){ return !!state.auth.currentUserId; }
+function clamp(n, min, max){ return Math.min(max, Math.max(min, n)); }
+
+function setAuthStatus(msg){
+  el("authStatusLine").textContent = msg;
+}
+
+function showAuthChooser(){
+  el("authChoicePane").classList.remove("hidden");
+  el("authSignInPane").classList.add("hidden");
+  el("authSignUpPane").classList.add("hidden");
+}
+function showSignInPane(){
+  el("authChoicePane").classList.add("hidden");
+  el("authSignInPane").classList.remove("hidden");
+  el("authSignUpPane").classList.add("hidden");
+}
+function showSignUpPane(){
+  el("authChoicePane").classList.add("hidden");
+  el("authSignInPane").classList.add("hidden");
+  el("authSignUpPane").classList.remove("hidden");
+}
+
+function configureSupabaseClient(url, anonKey, persist = true){
+  const cleanUrl = String(url || "").trim();
+  const cleanKey = String(anonKey || "").trim();
+  if(!cleanUrl || !cleanKey){
+    state.sb.url = "";
+    state.sb.anonKey = "";
+    state.sb.client = null;
+    return false;
+  }
+  if(!window.supabase || !window.supabase.createClient){
+    setAuthStatus("Supabase SDK failed to load.");
+    return false;
+  }
+  state.sb.url = cleanUrl;
+  state.sb.anonKey = cleanKey;
+  state.sb.client = window.supabase.createClient(cleanUrl, cleanKey, {
+    auth: { persistSession: true, autoRefreshToken: true }
+  });
+  if(persist){
+    localStorage.setItem(LS_SB_URL, cleanUrl);
+    localStorage.setItem(LS_SB_ANON, cleanKey);
+  }
+  el("supabaseUrlInput").value = cleanUrl;
+  el("supabaseAnonInput").value = cleanKey;
+  return true;
+}
+
+function loadSupabaseConfig(){
+  const url = localStorage.getItem(LS_SB_URL) || "";
+  const anon = localStorage.getItem(LS_SB_ANON) || "";
+  if(url && anon){
+    configureSupabaseClient(url, anon, false);
+  } else {
+    el("supabaseUrlInput").value = url;
+    el("supabaseAnonInput").value = anon;
+  }
+}
+
+function isSupabaseConfigured(){
+  return !!(state.sb.client && state.sb.url && state.sb.anonKey);
+}
+
+async function restoreSupabaseSession(){
+  if(!isSupabaseConfigured()) return;
+  const { data, error } = await state.sb.client.auth.getSession();
+  if(error || !data?.session?.user){
+    state.auth.currentUserId = null;
+    state.auth.currentEmail = "";
+    return;
+  }
+  state.auth.currentUserId = data.session.user.id;
+  state.auth.currentEmail = data.session.user.email || "";
+}
+
+async function saveUserDataRemote(){
+  if(!isSignedIn() || !isSupabaseConfigured()) return;
+  const row = {
+    user_id: state.auth.currentUserId,
+    settings: state.settings,
+    ingredients: state.ingredients,
+    entries: state.entries,
+    updated_at: new Date().toISOString()
+  };
+  const { error } = await state.sb.client.from(DATA_TABLE).upsert(row, { onConflict: "user_id" });
+  if(error){
+    console.error("Failed saving user data:", error.message);
+  }
+}
+
+function closeAuth(){ el("modalAuth").style.display = "none"; }
+function openAuth(){
+  el("modalAuth").style.display = "flex";
+  showAuthChooser();
+  setAuthStatus("Choose sign in or sign up, then continue.");
+  el("supabaseUrlInput").value = state.sb.url || localStorage.getItem(LS_SB_URL) || "";
+  el("supabaseAnonInput").value = state.sb.anonKey || localStorage.getItem(LS_SB_ANON) || "";
+}
+
+function refreshAuthUI(){
+  const signedIn = isSignedIn();
+  el("btnAuth").classList.toggle("hidden", signedIn);
+  el("btnSignOut").classList.toggle("hidden", !signedIn);
+  el("authGate").classList.toggle("hidden", signedIn);
+  el("appGrid").classList.toggle("hidden", !signedIn);
+  el("userBadge").textContent = signedIn ? state.auth.currentEmail : "Not signed in";
+}
+
+function applyMobileMode(){
+  const forced = !!state.settings.mobileMode;
+  const auto = window.innerWidth <= 760;
+  document.body.classList.toggle("mobile-mode", forced || auto);
+  el("btnMobileMode").textContent = forced ? "🖥️ Desktop view" : "📱 Mobile view";
+}
+
+function normalizeMacroRatios(raw){
+  let p = Math.round(safeNum(raw?.p, DEFAULT_MACRO_RATIOS.p));
+  let c = Math.round(safeNum(raw?.c, DEFAULT_MACRO_RATIOS.c));
+  let f = Math.round(safeNum(raw?.f, DEFAULT_MACRO_RATIOS.f));
+
+  if(p <= 0 || c <= 0 || f <= 0) return { ...DEFAULT_MACRO_RATIOS };
+
+  const sum = p + c + f;
+  p = Math.round((p / sum) * 100);
+  c = Math.round((c / sum) * 100);
+  f = 100 - p - c;
+
+  if(p < MACRO_MIN_RATIO || c < MACRO_MIN_RATIO || f < MACRO_MIN_RATIO){
+    return { ...DEFAULT_MACRO_RATIOS };
+  }
+  return { p, c, f };
+}
+
+function normalizeSettings(){
+  const defaultGoalKcal = Math.max(0, safeNum(state.settings?.defaultGoalKcal, 2000));
+  const macroRatios = normalizeMacroRatios(state.settings?.macroRatios);
+  const mobileMode = !!state.settings?.mobileMode;
+  const openaiApiKey = String(state.settings?.openaiApiKey || "").trim();
+  state.settings = { defaultGoalKcal, macroRatios, mobileMode, openaiApiKey };
+}
+
+async function loadAll(){
+  if(!isSignedIn()){
+    state.settings = { defaultGoalKcal: 2000, macroRatios: { ...DEFAULT_MACRO_RATIOS }, mobileMode: false, openaiApiKey: "" };
+    state.ingredients = {};
+    state.entries = {};
+    state.photoDrafts = [];
+    return;
+  }
+
+  state.settings = { defaultGoalKcal: 2000, macroRatios: { ...DEFAULT_MACRO_RATIOS }, mobileMode: false, openaiApiKey: "" };
+  state.ingredients = {};
+  state.entries = {};
+
+  if(!isSupabaseConfigured()){
+    setAuthStatus("Set Supabase URL + anon key first.");
+    return;
+  }
+
+  const { data, error } = await state.sb.client
+    .from(DATA_TABLE)
+    .select("settings, ingredients, entries")
+    .eq("user_id", state.auth.currentUserId)
+    .maybeSingle();
+
+  if(error && error.code !== "PGRST116"){
+    console.error("Failed loading user data:", error.message);
+    setAuthStatus(`Failed loading data: ${error.message}`);
+  }
+
+  if(data){
+    state.settings = data.settings || state.settings;
+    state.ingredients = data.ingredients || {};
+    state.entries = data.entries || {};
+  }
+
+  normalizeSettings();
+  applyMobileMode();
+
+  const defaultDb = defaultIngredientsLarge();
+  if(!Object.keys(state.ingredients).length){
+    state.ingredients = defaultDb;
+    await saveUserDataRemote();
+  } else {
+    let addedDefaults = false;
+    for(const [key, ing] of Object.entries(defaultDb)){
+      if(!state.ingredients[key]){
+        state.ingredients[key] = ing;
+        addedDefaults = true;
+      }
+    }
+    if(addedDefaults) await saveUserDataRemote();
+  }
+  // --- schema normalization (adds piece/slice/serving conversions if present in older imports) ---
+  let ingChanged = false;
+  for(const [key, ing] of Object.entries(state.ingredients)){
+    if(!ing || typeof ing !== "object") continue;
+
+    // Older imports might use per_100 instead of per100
+    if(!ing.per100 && ing.per_100){
+      ing.per100 = ing.per_100;
+      ingChanged = true;
+    }
+    // Older imports might use gPiece/gSlice/gServing
+    if((ing.gramsPerPiece == null) && ing.gPiece != null){
+      ing.gramsPerPiece = ing.gPiece;
+      ingChanged = true;
+    }
+    if((ing.gramsPerSlice == null) && ing.gSlice != null){
+      ing.gramsPerSlice = ing.gSlice;
+      ingChanged = true;
+    }
+    if((ing.gramsPerServing == null) && ing.gServing != null){
+      ing.gramsPerServing = ing.gServing;
+      ingChanged = true;
+    }
+
+    // Ensure consistent nulls (not undefined)
+    if(ing.gramsPerPiece === undefined){ ing.gramsPerPiece = null; ingChanged = true; }
+    if(ing.gramsPerSlice === undefined){ ing.gramsPerSlice = null; ingChanged = true; }
+    if(ing.gramsPerServing === undefined){ ing.gramsPerServing = null; ingChanged = true; }
+
+    if(ing.base !== "g" && ing.base !== "ml"){
+      ing.base = "g";
+      ingChanged = true;
+    }
+    if(!ing.name){
+      ing.name = key;
+      ingChanged = true;
+    }
+  }
+  if(ingChanged) await saveUserDataRemote();
+
+  if(!state.entries || typeof state.entries !== "object") state.entries = {};
+}
+
+function saveSettings(){
+  if(!isSignedIn()) return;
+  void saveUserDataRemote();
+}
+function saveIngredients(){
+  if(!isSignedIn()) return;
+  void saveUserDataRemote();
+}
+function saveEntries(){
+  if(!isSignedIn()) return;
+  void saveUserDataRemote();
+}
+
+function ensureEntry(date){
+  if(!isSignedIn()) return { goalOverrideKcal: null, items: [] };
+  if(!state.entries[date]){
+    state.entries[date] = { goalOverrideKcal: null, items: [] };
+    saveEntries();
+  } else {
+    if(!Array.isArray(state.entries[date].items)) state.entries[date].items = [];
+    if(!("goalOverrideKcal" in state.entries[date])) state.entries[date].goalOverrideKcal = null;
+  }
+  return state.entries[date];
+}
+
+function getGoalForDate(date){
+  if(!isSignedIn()) return 0;
+  const entry = ensureEntry(date);
+  const override = entry.goalOverrideKcal;
+  if(Number.isFinite(Number(override)) && Number(override) > 0) return Number(override);
+  return Math.max(0, Number(state.settings.defaultGoalKcal || 0));
+}
+
+/* -----------------------------------------
+   Units & conversions
+------------------------------------------*/
+const MASS_TO_G = { g:1, kg:1000, oz:28.349523125, lb:453.59237 };
+const VOL_TO_ML = { ml:1, l:1000, tsp:5, tbsp:15, cup:240 };
+
+function allowedUnitsForIngredient(ing){
+  if(!ing) return ["g","ml"];
+  if(ing.base === "g"){
+    // Always show piece/slice/serving; if not configured for an ingredient they will be disabled in the UI.
+    return ["g","kg","oz","lb","piece","slice","serving"];
+  }
+  if(ing.base === "ml"){
+    return ["ml","l","tsp","tbsp","cup"];
+  }
+  return ["g","ml"];
+}
+
+function convertAmountToBase(amount, unit, ing){
+  if(!ing) return null;
+  amount = safeNum(amount, NaN);
+  if(!Number.isFinite(amount) || amount <= 0) return null;
+
+  if(ing.base === "g"){
+    if(unit in MASS_TO_G) return amount * MASS_TO_G[unit];
+    if(unit === "piece" && ing.gramsPerPiece) return amount * ing.gramsPerPiece;
+    if(unit === "slice" && ing.gramsPerSlice) return amount * ing.gramsPerSlice;
+    if(unit === "serving" && ing.gramsPerServing) return amount * ing.gramsPerServing;
+    return null;
+  }
+  if(ing.base === "ml"){
+    if(unit in VOL_TO_ML) return amount * VOL_TO_ML[unit];
+    return null;
+  }
+  return null;
+}
+
+/* -----------------------------------------
+   Calculations
+------------------------------------------*/
+function calcItem(item){
+  const ing = state.ingredients[item.ingKey];
+  if(!ing) return null;
+  const baseAmt = convertAmountToBase(item.amount, item.unit, ing);
+  if(baseAmt === null) return null;
+
+  const factor = baseAmt / 100;
+  const kcal = factor * safeNum(ing.per100?.kcal, 0);
+  const p = factor * safeNum(ing.per100?.p, 0);
+  const c = factor * safeNum(ing.per100?.c, 0);
+  const f = factor * safeNum(ing.per100?.f, 0);
+  return { kcal, p, c, f, ingName: ing.name };
+}
+
+function sumDay(date){
+  const entry = ensureEntry(date);
+  let kcal=0,p=0,c=0,f=0;
+  for(const it of entry.items){
+    const r = calcItem(it);
+    if(!r) continue;
+    kcal += r.kcal; p += r.p; c += r.c; f += r.f;
+  }
+  return { kcal, p, c, f };
+}
+
+function round0(x){ return Math.round(x); }
+function round1(x){ return Math.round(x*10)/10; }
+
+function setStatusPill(consumed, goal){
+  const pill = el("statusPill");
+  const remaining = goal - consumed;
+  if(goal <= 0){
+    pill.className = "pill warn";
+    pill.textContent = "no goal";
+    return;
+  }
+  if(remaining >= 0){
+    pill.className = "pill good";
+    pill.textContent = "under goal";
+  } else {
+    pill.className = "pill bad";
+    pill.textContent = "over goal";
+  }
+}
+
+function getMacroGoalFromKcal(goalKcal){
+  const ratios = normalizeMacroRatios(state.settings.macroRatios);
+  const pKcal = goalKcal * (ratios.p / 100);
+  const cKcal = goalKcal * (ratios.c / 100);
+  const fKcal = goalKcal * (ratios.f / 100);
+  return {
+    ratios,
+    grams: {
+      p: pKcal / MACRO_CAL_PER_G.p,
+      c: cKcal / MACRO_CAL_PER_G.c,
+      f: fKcal / MACRO_CAL_PER_G.f
+    },
+    kcal: { p: pKcal, c: cKcal, f: fKcal }
+  };
+}
+
+function canAdjustMacro(targetKey, direction){
+  const ratios = normalizeMacroRatios(state.settings.macroRatios);
+  const others = MACRO_KEYS.filter(k => k !== targetKey);
+  if(direction > 0){
+    if(ratios[targetKey] + MACRO_STEP_PCT > (100 - MACRO_MIN_RATIO * 2)) return false;
+    return others.every(k => ratios[k] - (MACRO_STEP_PCT / 2) >= MACRO_MIN_RATIO);
+  }
+  return ratios[targetKey] - MACRO_STEP_PCT >= MACRO_MIN_RATIO;
+}
+
+function adjustMacroRatio(targetKey, direction){
+  if(!MACRO_KEYS.includes(targetKey)) return;
+  if(direction !== 1 && direction !== -1) return;
+  if(!canAdjustMacro(targetKey, direction)) return;
+
+  const ratios = normalizeMacroRatios(state.settings.macroRatios);
+  const others = MACRO_KEYS.filter(k => k !== targetKey);
+  const halfStep = MACRO_STEP_PCT / 2;
+
+  if(direction > 0){
+    ratios[targetKey] += MACRO_STEP_PCT;
+    ratios[others[0]] -= halfStep;
+    ratios[others[1]] -= halfStep;
+  } else {
+    ratios[targetKey] -= MACRO_STEP_PCT;
+    ratios[others[0]] += halfStep;
+    ratios[others[1]] += halfStep;
+  }
+
+  ratios.p = Math.round(ratios.p * 10) / 10;
+  ratios.c = Math.round(ratios.c * 10) / 10;
+  ratios.f = Math.round((100 - ratios.p - ratios.c) * 10) / 10;
+
+  state.settings.macroRatios = normalizeMacroRatios(ratios);
+  saveSettings();
+  renderCurrentDate();
+}
+
+/* -----------------------------------------
+   Autocomplete (single input)
+------------------------------------------*/
+let selectedKey = null;
+let acIndex = -1;
+let currentSuggestions = [];
+
+function scoreMatch(q, name){
+  const n = name.toLowerCase();
+  if(n === q) return 1000;
+  if(n.startsWith(q)) return 800 - (n.length - q.length);
+  const idx = n.indexOf(q);
+  if(idx >= 0) return 500 - idx - (n.length - q.length);
+  // light subsequence
+  let qi=0, hits=0;
+  for(let i=0;i<n.length && qi<q.length;i++){
+    if(n[i] === q[qi]){ qi++; hits++; }
+  }
+  if(hits >= Math.min(4, q.length)) return 200 + hits;
+  return -1;
+}
+
+function buildSuggestions(query){
+  const q = normalizeName(query);
+  if(!q) return [];
+  const items = Object.entries(state.ingredients).map(([k, ing]) => {
+    const s = scoreMatch(q, ing.name);
+    return { key:k, name: ing.name, base: ing.base, kcal: safeNum(ing.per100?.kcal,0), score:s };
+  }).filter(x => x.score >= 0);
+  items.sort((a,b)=> b.score - a.score || a.name.localeCompare(b.name));
+  return items.slice(0, 10);
+}
+
+function closeAC(){
+  el("acList").style.display = "none";
+  el("acList").innerHTML = "";
+  currentSuggestions = [];
+  acIndex = -1;
+}
+
+function renderSuggestions(){
+  const q = el("ingInput").value;
+  currentSuggestions = buildSuggestions(q);
+
+  if(!currentSuggestions.length){
+    closeAC();
+    return;
+  }
+  el("acList").innerHTML = currentSuggestions.map((sug, idx) => `
+    <div class="acItem ${idx===acIndex ? "active":""}" data-idx="${idx}" title="${escapeAttr(sug.name)}">
+      <div class="acLeft">
+        <b class="acName">${escapeHtml(sug.name)}</b>
+        <div class="smallMuted acSub">${escapeHtml(sug.base === "g" ? "per 100g" : "per 100ml")}</div>
+      </div>
+      <div class="meta">${Math.round(sug.kcal)} kcal/100</div>
+    </div>
+  `).join("");
+
+  el("acList").querySelectorAll(".acItem").forEach(item => {
+    item.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      const idx = Number(item.getAttribute("data-idx"));
+      pickSuggestion(currentSuggestions[idx].key);
+    });
+  });
+
+  el("acList").style.display = "block";
+}
+
+function setUnitOptionsForKey(key){
+  const ing = state.ingredients[key];
+  const units = allowedUnitsForIngredient(ing);
+
+  el("unitSelect").innerHTML = units.map(u => {
+    let disabled = false;
+    let label = u;
+
+    if(ing?.base === "g" && (u === "piece" || u === "slice" || u === "serving")){
+      if(u === "piece" && !ing.gramsPerPiece) disabled = true;
+      if(u === "slice" && !ing.gramsPerSlice) disabled = true;
+      if(u === "serving" && !ing.gramsPerServing) disabled = true;
+      if(disabled) label = `${u} (set in DB)`;
+    }
+    return `<option value="${escapeAttr(u)}" ${disabled ? "disabled" : ""}>${escapeHtml(label)}</option>`;
+  }).join("");
+
+  if(ing?.base === "g" && units.includes("g")) el("unitSelect").value = "g";
+  if(ing?.base === "ml" && units.includes("ml")) el("unitSelect").value = "ml";
+}
+
+function pickSuggestion(key){
+  const ing = state.ingredients[key];
+  if(!ing) return;
+  selectedKey = key;
+  el("ingInput").value = ing.name; // show canonical full name
+  setUnitOptionsForKey(key);
+  closeAC();
+}
+
+function ensureSelectionOrExactMatch(){
+  // already selected and input matches canonical
+  if(selectedKey && state.ingredients[selectedKey]?.name === el("ingInput").value.trim()) return true;
+
+  // typed exact key
+  const typed = normalizeName(el("ingInput").value);
+  if(typed && state.ingredients[typed]){
+    pickSuggestion(typed);
+    return true;
+  }
+
+  selectedKey = null;
+  return false;
+}
+
+/* -----------------------------------------
+   Rendering
+------------------------------------------*/
+function renderSummary(){
+  if(!isSignedIn()) return;
+  const totals = sumDay(state.currentDate);
+  const goal = getGoalForDate(state.currentDate);
+  const remaining = goal - totals.kcal;
+  const overGoal = goal > 0 && remaining < 0;
+  const macroGoal = getMacroGoalFromKcal(goal);
+  const macroRemP = macroGoal.grams.p - totals.p;
+  const macroRemC = macroGoal.grams.c - totals.c;
+  const macroRemF = macroGoal.grams.f - totals.f;
+
+  el("goalDisplay").textContent = round0(goal);
+  el("consumedDisplay").textContent = round0(totals.kcal);
+  el("remainingInline").textContent = round0(remaining);
+
+  el("macroP").textContent = round0(totals.p);
+  el("macroC").textContent = round0(totals.c);
+  el("macroF").textContent = round0(totals.f);
+  el("macroGoalP").textContent = round0(macroGoal.grams.p);
+  el("macroGoalC").textContent = round0(macroGoal.grams.c);
+  el("macroGoalF").textContent = round0(macroGoal.grams.f);
+  el("macroRemP").textContent = round0(macroRemP);
+  el("macroRemC").textContent = round0(macroRemC);
+  el("macroRemF").textContent = round0(macroRemF);
+
+  setStatusPill(totals.kcal, goal);
+  el("defaultGoalLine").textContent = `Default goal: ${round0(state.settings.defaultGoalKcal)} kcal`;
+  el("consumedMetric").classList.toggle("over", overGoal);
+  el("macroMetric").classList.toggle("over", (macroRemP < 0 || macroRemC < 0 || macroRemF < 0));
+
+  renderMiniConsumed();
+  renderMacroGoals();
+}
+
+function mealLabel(m){
+  if(m === "breakfast") return "Breakfast";
+  if(m === "lunch") return "Lunch";
+  if(m === "dinner") return "Dinner";
+  return "Snack";
+}
+
+function renderMiniConsumed(){
+  const entry = ensureEntry(state.currentDate);
+  const mini = el("miniConsumed");
+  if(!entry.items.length){
+    mini.innerHTML = `<div class="smallMuted">No items yet.</div>`;
+    return;
+  }
+
+  // show full list with scrolling
+  const all = entry.items.slice().reverse();
+  mini.innerHTML = all.map(it => {
+    const r = calcItem(it);
+    const name = r?.ingName || (state.ingredients[it.ingKey]?.name || it.ingKey);
+    const kcal = r ? round0(r.kcal) : "—";
+    return `<div class="miniItem"><span class="left">${escapeHtml(mealLabel(it.meal))}: ${escapeHtml(name)}</span><b>${kcal}</b></div>`;
+  }).join("");
+}
+
+function renderMacroGoals(){
+  const info = el("macroGoalInfo");
+  if(!info || !isSignedIn()) return;
+
+  const goal = getGoalForDate(state.currentDate);
+  const macroGoal = getMacroGoalFromKcal(goal);
+  const ratios = macroGoal.ratios;
+
+  el("macroGoalInfo").textContent = `Goal calories for macro targets: ${round0(goal)} kcal`;
+  el("macroGoalPGram").textContent = `${round0(macroGoal.grams.p)} g`;
+  el("macroGoalCGram").textContent = `${round0(macroGoal.grams.c)} g`;
+  el("macroGoalFGram").textContent = `${round0(macroGoal.grams.f)} g`;
+  el("macroGoalPPct").textContent = `${round1(ratios.p)}%`;
+  el("macroGoalCPct").textContent = `${round1(ratios.c)}%`;
+  el("macroGoalFPct").textContent = `${round1(ratios.f)}%`;
+
+  const totalMacroKcal = macroGoal.kcal.p + macroGoal.kcal.c + macroGoal.kcal.f;
+  el("macroGoalTotalNote").textContent = `Total macro calories: ${round0(totalMacroKcal)} kcal`;
+
+  el("macroPPlus").disabled = !canAdjustMacro("p", 1);
+  el("macroPMinus").disabled = !canAdjustMacro("p", -1);
+  el("macroCPlus").disabled = !canAdjustMacro("c", 1);
+  el("macroCMinus").disabled = !canAdjustMacro("c", -1);
+  el("macroFPlus").disabled = !canAdjustMacro("f", 1);
+  el("macroFMinus").disabled = !canAdjustMacro("f", -1);
+}
+
+function renderConsumedTable(){
+  const body = el("consumedBody");
+  const entry = ensureEntry(state.currentDate);
+
+  if(!entry.items.length){
+    body.innerHTML = `<tr><td colspan="8" class="smallMuted">No items yet. Add something above.</td></tr>`;
+    return;
+  }
+
+  body.innerHTML = entry.items.map((it, idx) => {
+    const r = calcItem(it);
+    const name = r?.ingName || (state.ingredients[it.ingKey]?.name || it.ingKey);
+    const amountStr = `${it.amount} ${it.unit}`;
+    return `
+      <tr>
+        <td><span class="badge">${escapeHtml(mealLabel(it.meal))}</span></td>
+        <td><b>${escapeHtml(name)}</b><div class="smallMuted">${escapeHtml(it.ingKey)}</div></td>
+        <td class="tdRight">${escapeHtml(amountStr)}</td>
+        <td class="tdRight">${r ? round0(r.kcal) : "—"}</td>
+        <td class="tdRight">${r ? round0(r.p) : "—"}</td>
+        <td class="tdRight">${r ? round0(r.c) : "—"}</td>
+        <td class="tdRight">${r ? round0(r.f) : "—"}</td>
+        <td class="tdRight"><button class="btn secondary" style="padding:7px 10px" data-del="${idx}">Remove</button></td>
+      </tr>
+    `;
+  }).join("");
+
+  body.querySelectorAll("button[data-del]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const idx = Number(btn.getAttribute("data-del"));
+      const entry = ensureEntry(state.currentDate);
+      entry.items.splice(idx, 1);
+      saveEntries();
+      renderCurrentDate();
+    });
+  });
+}
+
+function renderQuickDb(){
+  const body = el("quickDbBody");
+  if(!isSignedIn()){
+    body.innerHTML = `<tr><td colspan="6" class="smallMuted">Sign in to view ingredient data.</td></tr>`;
+    return;
+  }
+  const q = normalizeName(state.quickSearch);
+  const items = Object.values(state.ingredients)
+    .filter(x => !q || normalizeName(x.name).includes(q))
+    .sort((a,b)=> a.name.localeCompare(b.name))
+    .slice(0, 12);
+
+  body.innerHTML = items.map(x => `
+    <tr>
+      <td><b>${escapeHtml(x.name)}</b><div class="smallMuted">${escapeHtml(normalizeName(x.name))}</div></td>
+      <td class="tdRight">${round0(safeNum(x.per100?.kcal,0))}</td>
+      <td class="tdRight">${round1(safeNum(x.per100?.p,0))}</td>
+      <td class="tdRight">${round1(safeNum(x.per100?.c,0))}</td>
+      <td class="tdRight">${round1(safeNum(x.per100?.f,0))}</td>
+      <td class="tdRight"><span class="badge">${x.base === "g" ? "100g" : "100ml"}</span></td>
+    </tr>
+  `).join("") || `<tr><td colspan="6" class="smallMuted">No matches.</td></tr>`;
+}
+
+function renderCurrentDate(){
+  if(!isSignedIn()){
+    clearError();
+    el("goalDisplay").textContent = "—";
+    el("consumedDisplay").textContent = "—";
+    el("remainingInline").textContent = "—";
+    el("macroP").textContent = "0";
+    el("macroC").textContent = "0";
+    el("macroF").textContent = "0";
+    el("macroGoalP").textContent = "0";
+    el("macroGoalC").textContent = "0";
+    el("macroGoalF").textContent = "0";
+    el("macroRemP").textContent = "0";
+    el("macroRemC").textContent = "0";
+    el("macroRemF").textContent = "0";
+    el("miniConsumed").innerHTML = `<div class="smallMuted">Sign in to view consumed items.</div>`;
+    el("statusPill").className = "pill warn";
+    el("statusPill").textContent = "locked";
+    el("consumedBody").innerHTML = `<tr><td colspan="8" class="smallMuted">Sign in to view your data.</td></tr>`;
+    el("quickDbBody").innerHTML = `<tr><td colspan="6" class="smallMuted">Sign in to view ingredient data.</td></tr>`;
+    el("defaultGoalLine").textContent = "";
+    renderPhotoDrafts();
+    return;
+  }
+  ensureEntry(state.currentDate);
+  renderSummary();
+  renderConsumedTable();
+  renderQuickDb();
+  renderCalendar(); // keep history up-to-date if open
+  renderPhotoDrafts();
+}
+
+function ingredientOptionsHtml(selectedKey){
+  const items = Object.entries(state.ingredients)
+    .map(([k, ing]) => ({ key:k, name:ing.name }))
+    .sort((a,b)=> a.name.localeCompare(b.name));
+  return items.map(it => `<option value="${escapeAttr(it.key)}" ${it.key === selectedKey ? "selected" : ""}>${escapeHtml(it.name)}</option>`).join("");
+}
+
+function unitOptionsHtmlForKey(ingKey, selectedUnit){
+  const ing = state.ingredients[ingKey];
+  const units = allowedUnitsForIngredient(ing);
+  return units.map(u => {
+    let disabled = false;
+    let label = u;
+    if(ing?.base === "g" && (u === "piece" || u === "slice" || u === "serving")){
+      if(u === "piece" && !ing.gramsPerPiece) disabled = true;
+      if(u === "slice" && !ing.gramsPerSlice) disabled = true;
+      if(u === "serving" && !ing.gramsPerServing) disabled = true;
+      if(disabled) label = `${u} (set in DB)`;
+    }
+    const selected = u === selectedUnit ? "selected" : "";
+    return `<option value="${escapeAttr(u)}" ${disabled ? "disabled" : ""} ${selected}>${escapeHtml(label)}</option>`;
+  }).join("");
+}
+
+function defaultUnitForIngredient(ing){
+  if(!ing) return "g";
+  if(ing.base === "ml") return "ml";
+  if(ing.base === "g") return "g";
+  return "g";
+}
+
+function pushPhotoDraft(row){
+  if(!row || !row.ingKey || !state.ingredients[row.ingKey]) return;
+  const ing = state.ingredients[row.ingKey];
+  state.photoDrafts.push({
+    meal: row.meal || el("photoMealSelect").value,
+    ingKey: row.ingKey,
+    amount: clamp(safeNum(row.amount, 100), 0.1, 5000),
+    unit: row.unit || defaultUnitForIngredient(ing)
+  });
+}
+
+function renderPhotoDrafts(){
+  const wrap = el("photoResultsWrap");
+  const body = el("photoRowsBody");
+  if(!state.photoDrafts.length){
+    wrap.classList.add("hidden");
+    body.innerHTML = "";
+    return;
+  }
+
+  wrap.classList.remove("hidden");
+  body.innerHTML = state.photoDrafts.map((row, idx) => {
+    const ing = state.ingredients[row.ingKey];
+    const unitHtml = unitOptionsHtmlForKey(row.ingKey, row.unit || defaultUnitForIngredient(ing));
+    return `
+      <tr>
+        <td>
+          <select data-photo-meal="${idx}">
+            <option value="breakfast" ${row.meal === "breakfast" ? "selected" : ""}>Breakfast</option>
+            <option value="lunch" ${row.meal === "lunch" ? "selected" : ""}>Lunch</option>
+            <option value="dinner" ${row.meal === "dinner" ? "selected" : ""}>Dinner</option>
+            <option value="snack" ${row.meal === "snack" ? "selected" : ""}>Snack</option>
+          </select>
+        </td>
+        <td>
+          <select data-photo-ing="${idx}">
+            ${ingredientOptionsHtml(row.ingKey)}
+          </select>
+        </td>
+        <td class="tdRight">
+          <input data-photo-amt="${idx}" type="number" min="0.1" step="0.1" value="${escapeAttr(String(row.amount))}" style="max-width:110px" />
+        </td>
+        <td>
+          <select data-photo-unit="${idx}">
+            ${unitHtml}
+          </select>
+        </td>
+        <td class="tdRight">
+          <button class="btn secondary" type="button" data-photo-del="${idx}" style="padding:7px 10px">Delete</button>
+        </td>
+      </tr>
+    `;
+  }).join("");
+
+  body.querySelectorAll("[data-photo-meal]").forEach(x => x.addEventListener("change", () => {
+    const idx = Number(x.getAttribute("data-photo-meal"));
+    if(!state.photoDrafts[idx]) return;
+    state.photoDrafts[idx].meal = x.value;
+  }));
+  body.querySelectorAll("[data-photo-ing]").forEach(x => x.addEventListener("change", () => {
+    const idx = Number(x.getAttribute("data-photo-ing"));
+    if(!state.photoDrafts[idx]) return;
+    const newKey = x.value;
+    state.photoDrafts[idx].ingKey = newKey;
+    const ing = state.ingredients[newKey];
+    state.photoDrafts[idx].unit = defaultUnitForIngredient(ing);
+    renderPhotoDrafts();
+  }));
+  body.querySelectorAll("[data-photo-amt]").forEach(x => x.addEventListener("input", () => {
+    const idx = Number(x.getAttribute("data-photo-amt"));
+    if(!state.photoDrafts[idx]) return;
+    const v = safeNum(x.value, NaN);
+    if(Number.isFinite(v) && v > 0) state.photoDrafts[idx].amount = v;
+  }));
+  body.querySelectorAll("[data-photo-unit]").forEach(x => x.addEventListener("change", () => {
+    const idx = Number(x.getAttribute("data-photo-unit"));
+    if(!state.photoDrafts[idx]) return;
+    state.photoDrafts[idx].unit = x.value;
+  }));
+  body.querySelectorAll("[data-photo-del]").forEach(btn => btn.addEventListener("click", () => {
+    const idx = Number(btn.getAttribute("data-photo-del"));
+    state.photoDrafts.splice(idx, 1);
+    renderPhotoDrafts();
+  }));
+}
+
+function stripCodeFences(text){
+  const t = String(text || "").trim();
+  return t.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```$/i, "").trim();
+}
+
+function tryParseJsonPayload(text){
+  const clean = stripCodeFences(text);
+  try { return JSON.parse(clean); } catch {}
+  const match = clean.match(/\{[\s\S]*\}/);
+  if(match){
+    try { return JSON.parse(match[0]); } catch {}
+  }
+  return null;
+}
+
+function fallbackPhotoGuess(fileName){
+  const name = normalizeName(fileName).replace(/\.[a-z0-9]+$/i, "");
+  const words = name.split(/[^a-z0-9]+/).filter(Boolean);
+  const hits = [];
+  for(const [k, ing] of Object.entries(state.ingredients)){
+    const n = normalizeName(ing.name);
+    if(words.some(w => w.length > 2 && n.includes(w))){
+      hits.push({ meal: el("photoMealSelect").value, ingKey: k, amount: ing.base === "ml" ? 250 : 150, unit: defaultUnitForIngredient(ing) });
+      if(hits.length >= 4) break;
+    }
+  }
+  if(!hits.length){
+    const firstKey = Object.keys(state.ingredients)[0];
+    if(firstKey){
+      const ing = state.ingredients[firstKey];
+      hits.push({ meal: el("photoMealSelect").value, ingKey: firstKey, amount: ing.base === "ml" ? 250 : 150, unit: defaultUnitForIngredient(ing) });
+    }
+  }
+  return hits;
+}
+
+async function analyzePhotoWithOpenAI(dataUrl){
+  const apiKey = String(el("aiKeyInput").value || "").trim() || state.settings.openaiApiKey;
+  if(!apiKey) return { ok:false, reason:"missing_key" };
+
+  const ingredients = Object.values(state.ingredients).map(x => x.name).sort((a,b)=> a.localeCompare(b));
+  const ingredientList = ingredients.join(", ");
+  const meal = el("photoMealSelect").value;
+  const prompt = [
+    "Identify foods in this plate image.",
+    "Map results only to ingredient names from this list:",
+    ingredientList,
+    "Return strict JSON only with this schema:",
+    '{"items":[{"ingredient":"exact name from list","amount":number,"unit":"g|ml|piece|slice|serving","meal":"breakfast|lunch|dinner|snack"}]}',
+    `Use "${meal}" as meal if unsure.`
+  ].join("\n");
+
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      temperature: 0.1,
+      messages: [
+        { role:"system", content:"You are a food recognition assistant. Output valid JSON only." },
+        { role:"user", content: [
+          { type:"text", text: prompt },
+          { type:"image_url", image_url: { url: dataUrl } }
+        ] }
+      ]
+    })
+  });
+
+  if(!res.ok){
+    return { ok:false, reason:`api_error_${res.status}` };
+  }
+  const payload = await res.json();
+  const text = payload?.choices?.[0]?.message?.content || "";
+  const parsed = tryParseJsonPayload(text);
+  if(!parsed || !Array.isArray(parsed.items)) return { ok:false, reason:"parse_error" };
+  return { ok:true, items: parsed.items };
+}
+
+/* -----------------------------------------
+   Error helpers
+------------------------------------------*/
+function showError(msg){
+  const box = el("errorBox");
+  box.style.display = "block";
+  box.textContent = msg;
+}
+function clearError(){
+  const box = el("errorBox");
+  box.style.display = "none";
+  box.textContent = "";
+}
+
+/* -----------------------------------------
+   Auth
+------------------------------------------*/
+function saveSupabaseConfigFromInputs(){
+  const url = String(el("supabaseUrlInput").value || "").trim();
+  const anon = String(el("supabaseAnonInput").value || "").trim();
+  if(!url || !anon){
+    setAuthStatus("Enter Supabase URL and anon key.");
+    return false;
+  }
+  const ok = configureSupabaseClient(url, anon, true);
+  if(ok) setAuthStatus("Supabase config saved.");
+  return ok;
+}
+
+async function signUp(){
+  if(!isSupabaseConfigured() && !saveSupabaseConfigFromInputs()) return;
+  const emailRaw = String(el("signUpEmail").value || "").trim().toLowerCase();
+  const pw1 = String(el("signUpPassword").value || "");
+  const pw2 = String(el("signUpPassword2").value || "");
+
+  if(!emailRaw || !emailRaw.includes("@")){
+    setAuthStatus("Enter a valid email.");
+    return;
+  }
+  if(pw1.length < 6){
+    setAuthStatus("Password must be at least 6 characters.");
+    return;
+  }
+  if(pw1 !== pw2){
+    setAuthStatus("Passwords do not match.");
+    return;
+  }
+
+  const { data, error } = await state.sb.client.auth.signUp({
+    email: emailRaw,
+    password: pw1
+  });
+  if(error){
+    setAuthStatus(`Sign up failed: ${error.message}`);
+    return;
+  }
+
+  if(data?.session?.user){
+    state.auth.currentUserId = data.session.user.id;
+    state.auth.currentEmail = data.session.user.email || emailRaw;
+    closeAuth();
+    await afterAuthChange();
+    return;
+  }
+
+  setAuthStatus("Account created. Check your email for verification, then sign in.");
+  showSignInPane();
+  el("signInEmail").value = emailRaw;
+  el("signInPassword").focus();
+}
+
+async function signIn(){
+  if(!isSupabaseConfigured() && !saveSupabaseConfigFromInputs()) return;
+  const emailRaw = String(el("signInEmail").value || "").trim().toLowerCase();
+  const pw = String(el("signInPassword").value || "");
+  const { data, error } = await state.sb.client.auth.signInWithPassword({
+    email: emailRaw,
+    password: pw
+  });
+  if(error){
+    setAuthStatus(`Sign in failed: ${error.message}`);
+    return;
+  }
+  if(!data?.user){
+    setAuthStatus("Sign in failed.");
+    return;
+  }
+
+  state.auth.currentUserId = data.user.id;
+  state.auth.currentEmail = data.user.email || emailRaw;
+  closeAuth();
+  await afterAuthChange();
+}
+
+async function signOut(){
+  if(isSupabaseConfigured()){
+    await state.sb.client.auth.signOut();
+  }
+  state.auth.currentUserId = null;
+  state.auth.currentEmail = "";
+  state.settings = { defaultGoalKcal: 2000, macroRatios: { ...DEFAULT_MACRO_RATIOS }, mobileMode: false, openaiApiKey: "" };
+  state.ingredients = {};
+  state.entries = {};
+  state.photoDrafts = [];
+  applyMobileMode();
+  refreshAuthUI();
+  renderCurrentDate();
+}
+
+async function afterAuthChange(){
+  await loadAll();
+  state.currentDate = todayISO();
+  el("datePicker").value = state.currentDate;
+  ensureEntry(state.currentDate);
+  el("quickSearch").value = "";
+  state.quickSearch = "";
+  selectedKey = null;
+  setUnitOptionsForKey(Object.keys(state.ingredients)[0] || null);
+  el("aiKeyInput").value = state.settings.openaiApiKey || "";
+  state.photoDrafts = [];
+  el("photoStatus").textContent = "No photo analyzed yet.";
+  el("photoPreview").style.display = "none";
+  el("photoPreview").src = "";
+  refreshAuthUI();
+  renderCurrentDate();
+}
+
+/* -----------------------------------------
+   Goals modal
+------------------------------------------*/
+function openGoals(){
+  if(!isSignedIn()){ openAuth(); return; }
+  el("modalGoals").style.display = "flex";
+  el("defaultGoalInput").value = round0(state.settings.defaultGoalKcal || 0);
+  el("goalsDateLabel").textContent = state.currentDate;
+
+  const entry = ensureEntry(state.currentDate);
+  const v = entry.goalOverrideKcal;
+  el("goalOverrideInput").value = (Number.isFinite(Number(v)) && Number(v) > 0) ? Number(v) : "";
+  renderMacroGoals();
+}
+function closeGoals(){ el("modalGoals").style.display = "none"; }
+
+/* -----------------------------------------
+   Ingredient DB modal
+------------------------------------------*/
+function openIngredients(){
+  if(!isSignedIn()){ openAuth(); return; }
+  el("modalIngredients").style.display = "flex";
+  el("dbSearch").value = "";
+  renderIngredientsModalTable();
+}
+function closeIngredients(){ el("modalIngredients").style.display = "none"; }
+
+function renderIngredientsModalTable(){
+  const body = el("dbBody");
+  const q = normalizeName(el("dbSearch").value);
+
+  const items = Object.entries(state.ingredients)
+    .map(([key, ing]) => ({key, ing}))
+    .filter(({ing}) => !q || normalizeName(ing.name).includes(q))
+    .sort((a,b)=> a.ing.name.localeCompare(b.ing.name));
+
+  body.innerHTML = items.map(({key, ing}) => `
+    <tr>
+      <td><b>${escapeHtml(ing.name)}</b><div class="smallMuted">${escapeHtml(key)}</div></td>
+      <td class="tdRight">${round0(safeNum(ing.per100?.kcal,0))}</td>
+      <td class="tdRight">${round1(safeNum(ing.per100?.p,0))}</td>
+      <td class="tdRight">${round1(safeNum(ing.per100?.c,0))}</td>
+      <td class="tdRight">${round1(safeNum(ing.per100?.f,0))}</td>
+      <td class="tdRight"><span class="badge">${ing.base === "g" ? "100g" : "100ml"}</span></td>
+      <td class="tdRight">
+        <button class="btn secondary" style="padding:7px 10px" data-act="edit" data-key="${escapeAttr(key)}">Edit</button>
+        <button class="btn danger" style="padding:7px 10px" data-act="del" data-key="${escapeAttr(key)}">Delete</button>
+      </td>
+    </tr>
+  `).join("") || `<tr><td colspan="7" class="smallMuted">No ingredients.</td></tr>`;
+
+  body.querySelectorAll("button[data-act]").forEach(btn => {
+    const act = btn.getAttribute("data-act");
+    const key = btn.getAttribute("data-key");
+    btn.addEventListener("click", () => {
+      const ing = state.ingredients[key];
+      if(!ing) return;
+
+      if(act === "edit"){
+        el("ingName").value = ing.name;
+        el("ingBase").value = ing.base;
+        el("ingKcal").value = safeNum(ing.per100?.kcal,0);
+        el("ingP").value = safeNum(ing.per100?.p,0);
+        el("ingC").value = safeNum(ing.per100?.c,0);
+        el("ingF").value = safeNum(ing.per100?.f,0);
+        el("gPiece").value = ing.gramsPerPiece ?? "";
+        el("gSlice").value = ing.gramsPerSlice ?? "";
+        el("gServing").value = ing.gramsPerServing ?? "";
+        el("ingName").focus();
+      } else if(act === "del"){
+        if(confirm(`Delete ingredient "${ing.name}"?`)){
+          delete state.ingredients[key];
+          saveIngredients();
+          renderQuickDb();
+          renderIngredientsModalTable();
+          // Items referencing this key will show key; consider re-adding ingredient
+          renderCurrentDate();
+        }
+      }
+    });
+  });
+}
+
+/* -----------------------------------------
+   Calendar history
+------------------------------------------*/
+function openHistory(){
+  if(!isSignedIn()){ openAuth(); return; }
+  el("modalHistory").style.display = "flex";
+  const d = new Date();
+  state.calYear = d.getFullYear();
+  state.calMonth = d.getMonth();
+  renderCalendar();
+  renderSelectedDayDetails(state.currentDate);
+}
+function closeHistory(){ el("modalHistory").style.display = "none"; }
+
+function isoFromParts(y,m,d){
+  const mm = String(m+1).padStart(2,"0");
+  const dd = String(d).padStart(2,"0");
+  return `${y}-${mm}-${dd}`;
+}
+
+function renderCalendar(){
+  if(el("modalHistory").style.display !== "flex") return;
+
+  const y = state.calYear, m = state.calMonth;
+  const title = new Date(y, m, 1).toLocaleString("en-US", { month:"long", year:"numeric" });
+  el("calTitle").textContent = title;
+
+  const grid = el("calGrid");
+  grid.innerHTML = "";
+
+  const dows = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  for(const d of dows){
+    const div = document.createElement("div");
+    div.className = "calDow";
+    div.textContent = d;
+    grid.appendChild(div);
+  }
+
+  const first = new Date(y, m, 1);
+  const startDow = first.getDay();
+  const daysInMonth = new Date(y, m+1, 0).getDate();
+
+  const cells = 42;
+  const prevMonthDays = new Date(y, m, 0).getDate();
+
+  for(let i=0;i<cells;i++){
+    const cell = document.createElement("div");
+    cell.className = "calCell";
+
+    let dayNum, cy=y, cm=m;
+
+    if(i < startDow){
+      dayNum = prevMonthDays - (startDow - 1 - i);
+      const prev = new Date(y, m-1, 1);
+      cy = prev.getFullYear(); cm = prev.getMonth();
+      cell.classList.add("dim");
+    } else if(i >= startDow + daysInMonth){
+      dayNum = i - (startDow + daysInMonth) + 1;
+      const next = new Date(y, m+1, 1);
+      cy = next.getFullYear(); cm = next.getMonth();
+      cell.classList.add("dim");
+    } else {
+      dayNum = i - startDow + 1;
+    }
+
+    const iso = isoFromParts(cy, cm, dayNum);
+
+    const dot = document.createElement("div");
+    dot.className = "dot";
+
+    const hasEntry = !!state.entries[iso] && (ensureEntry(iso).items.length > 0);
+    if(hasEntry){
+      const totals = sumDay(iso);
+      const goal = getGoalForDate(iso);
+      if(goal > 0){
+        if(totals.kcal <= goal) dot.classList.add("good");
+        else dot.classList.add("bad");
+      } else {
+        dot.classList.add("warn");
+      }
+      cell.innerHTML = `
+        <div class="dayNum">${dayNum}</div>
+        <div class="kcal">${Math.round(totals.kcal)} kcal</div>
+      `;
+    } else {
+      cell.innerHTML = `
+        <div class="dayNum">${dayNum}</div>
+        <div class="kcal smallMuted">—</div>
+      `;
+    }
+
+    cell.appendChild(dot);
+
+    cell.addEventListener("click", () => {
+      state.currentDate = iso;
+      el("datePicker").value = iso;
+      ensureEntry(iso);
+      renderCurrentDate();
+      renderSelectedDayDetails(iso);
+    });
+
+    grid.appendChild(cell);
+  }
+}
+
+function renderSelectedDayDetails(date){
+  const entry = ensureEntry(date);
+  el("selHint").textContent = `Selected: ${date}`;
+
+  const box = el("selDetails");
+  if(!entry.items.length){
+    box.innerHTML = `<div class="smallMuted">No logged items for this day.</div>`;
+    return;
+  }
+
+  const totals = sumDay(date);
+  const goal = getGoalForDate(date);
+  const diff = totals.kcal - goal;
+
+  const statusBadge = goal > 0
+    ? (diff <= 0
+        ? `<span class="badge" style="border-color:rgba(61,220,151,.35); color:rgba(61,220,151,.95); background:rgba(61,220,151,.08)">Under by ${Math.abs(Math.round(diff))} kcal</span>`
+        : `<span class="badge" style="border-color:rgba(255,107,107,.35); color:rgba(255,107,107,.95); background:rgba(255,107,107,.09)">Over by ${Math.round(diff)} kcal</span>`)
+    : `<span class="badge" style="border-color:rgba(255,204,102,.35); color:rgba(255,204,102,.95); background:rgba(255,204,102,.09)">No goal</span>`;
+
+  box.innerHTML = `
+    <div class="row" style="justify-content:space-between; gap:10px">
+      <div><span class="badge">Consumed <b>${Math.round(totals.kcal)}</b> kcal</span></div>
+      <div>${statusBadge}</div>
+    </div>
+    <div class="divider"></div>
+    <div class="row" style="gap:10px; flex-wrap:wrap">
+      <span class="badge">Goal <b>${Math.round(goal)}</b> kcal</span>
+      <span class="badge">Protein <b>${Math.round(totals.p)}</b> g</span>
+      <span class="badge">Carbs <b>${Math.round(totals.c)}</b> g</span>
+      <span class="badge">Fat <b>${Math.round(totals.f)}</b> g</span>
+    </div>
+    <div class="footerNote">Click a date to jump into editing that day in the main screen.</div>
+  `;
+}
+
+/* -----------------------------------------
+   Export / Import
+------------------------------------------*/
+function exportData(){
+  if(!isSignedIn()){ openAuth(); return; }
+  const payload = {
+    version: 5,
+    exportedAt: new Date().toISOString(),
+    ownerEmail: state.auth.currentEmail,
+    ownerUserId: state.auth.currentUserId,
+    settings: state.settings,
+    ingredients: state.ingredients,
+    entries: state.entries
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `daily-calorie-tracker-v5-${state.auth.currentEmail.replace(/[^a-z0-9]+/gi,"_")}-${todayISO()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function importDataFromFile(file){
+  if(!isSignedIn()){ openAuth(); return; }
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const payload = JSON.parse(String(reader.result || "{}"));
+      if(payload && payload.ingredients && payload.entries){
+        if(payload.ownerEmail && payload.ownerEmail !== state.auth.currentEmail){
+          const proceed = confirm(`This file belongs to ${payload.ownerEmail}. Import into current user (${state.auth.currentEmail}) anyway?`);
+          if(!proceed) return;
+        }
+        state.settings = payload.settings || state.settings;
+        normalizeSettings();
+        state.ingredients = payload.ingredients;
+        state.entries = payload.entries;
+        saveSettings(); saveIngredients(); saveEntries();
+        applyMobileMode();
+        el("aiKeyInput").value = state.settings.openaiApiKey || "";
+
+        // reset selection
+        selectedKey = null;
+        setUnitOptionsForKey(Object.keys(state.ingredients)[0] || null);
+
+        renderCurrentDate();
+        alert("Import complete for current signed-in user.");
+      } else {
+        alert("Invalid import file format (expected settings/ingredients/entries).");
+      }
+    } catch(e){
+      alert("Failed to import: " + e.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+/* -----------------------------------------
+   Events
+------------------------------------------*/
+function bindEvents(){
+  window.addEventListener("resize", applyMobileMode);
+
+  // Auth + session
+  el("btnAuth").addEventListener("click", openAuth);
+  el("btnAuthGate").addEventListener("click", openAuth);
+  el("btnCloseAuth").addEventListener("click", closeAuth);
+  el("modalAuth").addEventListener("click", (e) => { if(e.target === el("modalAuth")) closeAuth(); });
+  el("btnChooseSignIn").addEventListener("click", showSignInPane);
+  el("btnChooseSignUp").addEventListener("click", showSignUpPane);
+  el("btnAuthBackFromSignIn").addEventListener("click", showAuthChooser);
+  el("btnAuthBackFromSignUp").addEventListener("click", showAuthChooser);
+  el("btnSignUp").addEventListener("click", async () => { await signUp(); });
+  el("btnSignIn").addEventListener("click", async () => { await signIn(); });
+  el("btnSignOut").addEventListener("click", async () => { await signOut(); });
+  el("signInPassword").addEventListener("keydown", async (e) => { if(e.key === "Enter"){ e.preventDefault(); await signIn(); } });
+  el("signUpPassword2").addEventListener("keydown", async (e) => { if(e.key === "Enter"){ e.preventDefault(); await signUp(); } });
+
+  // Mobile mode switch
+  el("btnMobileMode").addEventListener("click", () => {
+    state.settings.mobileMode = !state.settings.mobileMode;
+    if(isSignedIn()) saveSettings();
+    applyMobileMode();
+  });
+
+  // Date
+  el("datePicker").addEventListener("change", () => {
+    if(!isSignedIn()){ openAuth(); return; }
+    state.currentDate = el("datePicker").value || todayISO();
+    ensureEntry(state.currentDate);
+    renderCurrentDate();
+  });
+
+  // Quick add autocomplete
+  el("ingInput").addEventListener("input", () => {
+    selectedKey = null;
+    renderSuggestions();
+  });
+  el("ingInput").addEventListener("focus", () => renderSuggestions());
+  el("ingInput").addEventListener("blur", () => setTimeout(closeAC, 120));
+  el("ingInput").addEventListener("keydown", (e) => {
+    const acOpen = (el("acList").style.display === "block");
+
+    if(acOpen){
+      if(e.key === "ArrowDown"){
+        e.preventDefault();
+        acIndex = Math.min(currentSuggestions.length-1, acIndex+1);
+        renderSuggestions();
+      } else if(e.key === "ArrowUp"){
+        e.preventDefault();
+        acIndex = Math.max(0, acIndex-1);
+        renderSuggestions();
+      } else if(e.key === "Enter"){
+        if(currentSuggestions.length){
+          e.preventDefault();
+          const idx = acIndex >= 0 ? acIndex : 0;
+          pickSuggestion(currentSuggestions[idx].key);
+          setTimeout(() => el("amtInput").focus(), 0);
+        }
+      } else if(e.key === "Escape"){
+        closeAC();
+      }
+      return;
+    }
+
+    // When autocomplete is closed, Enter behaves like "next/add"
+    if(e.key === "Enter"){
+      e.preventDefault();
+      const amt = String(el("amtInput").value || "").trim();
+      if(!amt) el("amtInput").focus();
+      else el("btnAdd").click();
+    }
+  });
+
+  // Enter to add (Amount / Unit)
+  el("amtInput").addEventListener("keydown", (e) => {
+    if(e.key === "Enter"){
+      e.preventDefault();
+      el("btnAdd").click();
+    }
+  });
+  el("unitSelect").addEventListener("keydown", (e) => {
+    if(e.key === "Enter"){
+      e.preventDefault();
+      el("btnAdd").click();
+    }
+  });
+
+
+  // Add item
+  el("btnAdd").addEventListener("click", () => {
+    if(!isSignedIn()){ openAuth(); return; }
+    clearError();
+
+    if(!ensureSelectionOrExactMatch()){
+      showError("Pick an ingredient from the suggestions (unknown ingredients cannot be added).");
+      el("ingInput").focus();
+      return;
+    }
+    const ing = state.ingredients[selectedKey];
+    if(!ing){
+      showError("Selected ingredient is missing.");
+      return;
+    }
+
+    const amount = safeNum(el("amtInput").value, NaN);
+    if(!Number.isFinite(amount) || amount <= 0){
+      showError("Enter a valid amount (greater than 0).");
+      el("amtInput").focus();
+      return;
+    }
+
+    const unit = el("unitSelect").value;
+    if(convertAmountToBase(amount, unit, ing) === null){
+      showError("That unit isn’t valid for the selected ingredient.");
+      el("unitSelect").focus();
+      return;
+    }
+
+    const entry = ensureEntry(state.currentDate);
+    entry.items.push({
+      meal: el("mealSelect").value,
+      ingKey: selectedKey,
+      amount,
+      unit,
+      addedAt: new Date().toISOString()
+    });
+    saveEntries();
+
+    // Clear input (as requested)
+    el("ingInput").value = "";
+    el("amtInput").value = "";
+    selectedKey = null;
+    closeAC();
+
+    renderCurrentDate();
+    el("ingInput").focus();
+  });
+
+  // Clear day items
+  el("btnClearDay").addEventListener("click", () => {
+    if(!isSignedIn()){ openAuth(); return; }
+    const entry = ensureEntry(state.currentDate);
+    if(!entry.items.length) return;
+    if(confirm("Clear all items for this day?")){
+      entry.items = [];
+      saveEntries();
+      renderCurrentDate();
+    }
+  });
+
+  // Search
+  el("quickSearch").addEventListener("input", () => {
+    if(!isSignedIn()) return;
+    state.quickSearch = el("quickSearch").value;
+    renderQuickDb();
+  });
+
+  // Photo add
+  el("foodPhotoInput").addEventListener("change", () => {
+    const file = el("foodPhotoInput").files && el("foodPhotoInput").files[0];
+    if(!file){
+      el("photoStatus").textContent = "No photo selected.";
+      el("photoPreview").style.display = "none";
+      return;
+    }
+    el("photoStatus").textContent = `Selected: ${file.name}. Click "Analyze photo" to detect food.`;
+  });
+  el("aiKeyInput").addEventListener("change", () => {
+    state.settings.openaiApiKey = String(el("aiKeyInput").value || "").trim();
+    if(isSignedIn()) saveSettings();
+  });
+  el("btnAnalyzePhoto").addEventListener("click", async () => {
+    if(!isSignedIn()){ openAuth(); return; }
+    const file = el("foodPhotoInput").files && el("foodPhotoInput").files[0];
+    if(!file){
+      el("photoStatus").textContent = "Pick a photo first.";
+      return;
+    }
+    const toDataUrl = (f) => new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(String(r.result || ""));
+      r.onerror = () => reject(r.error || new Error("Failed to read file"));
+      r.readAsDataURL(f);
+    });
+
+    try{
+      const dataUrl = await toDataUrl(file);
+      el("photoPreview").src = dataUrl;
+      el("photoPreview").style.display = "block";
+      state.settings.openaiApiKey = String(el("aiKeyInput").value || "").trim();
+      saveSettings();
+      el("photoStatus").textContent = "Analyzing photo...";
+
+      let rows = [];
+      const ai = await analyzePhotoWithOpenAI(dataUrl);
+      if(ai.ok){
+        for(const item of ai.items){
+          const guessedName = normalizeName(item.ingredient || "");
+          let ingKey = guessedName && state.ingredients[guessedName] ? guessedName : null;
+          if(!ingKey){
+            ingKey = Object.keys(state.ingredients).find(k => normalizeName(state.ingredients[k]?.name).includes(guessedName));
+          }
+          if(!ingKey) continue;
+          const ing = state.ingredients[ingKey];
+          const unit = String(item.unit || "").toLowerCase();
+          const validUnits = allowedUnitsForIngredient(ing);
+          rows.push({
+            meal: ["breakfast","lunch","dinner","snack"].includes(item.meal) ? item.meal : el("photoMealSelect").value,
+            ingKey,
+            amount: clamp(safeNum(item.amount, ing.base === "ml" ? 250 : 150), 0.1, 5000),
+            unit: validUnits.includes(unit) ? unit : defaultUnitForIngredient(ing)
+          });
+        }
+      }
+      if(!rows.length){
+        rows = fallbackPhotoGuess(file.name);
+        el("photoStatus").textContent = "AI could not return clear matches. Added editable fallback rows.";
+      } else {
+        el("photoStatus").textContent = `Recognized ${rows.length} item(s). Edit rows before adding.`;
+      }
+
+      state.photoDrafts = [];
+      rows.forEach(pushPhotoDraft);
+      renderPhotoDrafts();
+    } catch (err){
+      const rows = fallbackPhotoGuess(file.name);
+      state.photoDrafts = [];
+      rows.forEach(pushPhotoDraft);
+      renderPhotoDrafts();
+      el("photoStatus").textContent = `Photo analysis failed (${err?.message || err}). Added editable fallback rows.`;
+    }
+  });
+  el("btnAddPhotoRow").addEventListener("click", () => {
+    if(!isSignedIn()){ openAuth(); return; }
+    const firstKey = Object.keys(state.ingredients)[0];
+    if(!firstKey) return;
+    pushPhotoDraft({
+      meal: el("photoMealSelect").value,
+      ingKey: firstKey,
+      amount: state.ingredients[firstKey].base === "ml" ? 250 : 120,
+      unit: defaultUnitForIngredient(state.ingredients[firstKey])
+    });
+    renderPhotoDrafts();
+  });
+  el("btnClearPhotoRows").addEventListener("click", () => {
+    state.photoDrafts = [];
+    renderPhotoDrafts();
+    el("photoStatus").textContent = "Recognized rows cleared.";
+  });
+  el("btnCommitPhotoRows").addEventListener("click", () => {
+    if(!isSignedIn()){ openAuth(); return; }
+    if(!state.photoDrafts.length){
+      el("photoStatus").textContent = "No recognized rows to add.";
+      return;
+    }
+    const entry = ensureEntry(state.currentDate);
+    let added = 0;
+    for(const row of state.photoDrafts){
+      const ing = state.ingredients[row.ingKey];
+      if(!ing) continue;
+      if(convertAmountToBase(row.amount, row.unit, ing) === null) continue;
+      entry.items.push({
+        meal: row.meal,
+        ingKey: row.ingKey,
+        amount: row.amount,
+        unit: row.unit,
+        addedAt: new Date().toISOString()
+      });
+      added += 1;
+    }
+    saveEntries();
+    state.photoDrafts = [];
+    renderCurrentDate();
+    el("photoStatus").textContent = `Added ${added} item(s) from photo recognition.`;
+  });
+
+  // Goals modal
+  el("btnGoals").addEventListener("click", openGoals);
+  el("btnCloseGoals").addEventListener("click", closeGoals);
+  el("modalGoals").addEventListener("click", (e) => { if(e.target === el("modalGoals")) closeGoals(); });
+
+  el("defaultGoalInput").addEventListener("input", () => {
+    if(!isSignedIn()) return;
+    state.settings.defaultGoalKcal = Math.max(0, safeNum(el("defaultGoalInput").value, 0));
+    saveSettings();
+    renderCurrentDate();
+  });
+
+  el("goalOverrideInput").addEventListener("input", () => {
+    if(!isSignedIn()) return;
+    const entry = ensureEntry(state.currentDate);
+    const v = safeNum(el("goalOverrideInput").value, NaN);
+    entry.goalOverrideKcal = (Number.isFinite(v) && v > 0) ? v : null;
+    saveEntries();
+    renderCurrentDate();
+  });
+
+  el("btnClearOverride").addEventListener("click", () => {
+    if(!isSignedIn()) return;
+    const entry = ensureEntry(state.currentDate);
+    entry.goalOverrideKcal = null;
+    saveEntries();
+    el("goalOverrideInput").value = "";
+    renderCurrentDate();
+  });
+
+  el("macroPPlus").addEventListener("click", () => adjustMacroRatio("p", 1));
+  el("macroPMinus").addEventListener("click", () => adjustMacroRatio("p", -1));
+  el("macroCPlus").addEventListener("click", () => adjustMacroRatio("c", 1));
+  el("macroCMinus").addEventListener("click", () => adjustMacroRatio("c", -1));
+  el("macroFPlus").addEventListener("click", () => adjustMacroRatio("f", 1));
+  el("macroFMinus").addEventListener("click", () => adjustMacroRatio("f", -1));
+
+  // Ingredients modal
+  el("btnIngredients").addEventListener("click", openIngredients);
+  el("btnCloseIngredients").addEventListener("click", closeIngredients);
+  el("modalIngredients").addEventListener("click", (e) => { if(e.target === el("modalIngredients")) closeIngredients(); });
+  el("dbSearch").addEventListener("input", renderIngredientsModalTable);
+
+  el("btnSaveIngredient").addEventListener("click", () => {
+    if(!isSignedIn()){ openAuth(); return; }
+    const nameRaw = el("ingName").value.trim();
+    if(!nameRaw){ alert("Enter an ingredient name."); return; }
+
+    const base = el("ingBase").value;
+    if(base !== "g" && base !== "ml"){ alert("Select a base."); return; }
+
+    const kcal = safeNum(el("ingKcal").value, NaN);
+    const p = safeNum(el("ingP").value, NaN);
+    const c = safeNum(el("ingC").value, NaN);
+    const f = safeNum(el("ingF").value, NaN);
+    if(!Number.isFinite(kcal) || kcal < 0) { alert("Enter a valid kcal/100."); return; }
+    if(!Number.isFinite(p) || p < 0 || !Number.isFinite(c) || c < 0 || !Number.isFinite(f) || f < 0) {
+      alert("Enter valid macros (P/C/F) per 100.");
+      return;
+    }
+
+    const gramsPerPiece = safeNum(el("gPiece").value, NaN);
+    const gramsPerSlice = safeNum(el("gSlice").value, NaN);
+    const gramsPerServing = safeNum(el("gServing").value, NaN);
+
+    const key = normalizeName(nameRaw);
+    state.ingredients[key] = {
+      name: nameRaw,
+      base,
+      per100: { kcal, p, c, f },
+      gramsPerPiece: Number.isFinite(gramsPerPiece) && gramsPerPiece > 0 ? gramsPerPiece : null,
+      gramsPerSlice: Number.isFinite(gramsPerSlice) && gramsPerSlice > 0 ? gramsPerSlice : null,
+      gramsPerServing: Number.isFinite(gramsPerServing) && gramsPerServing > 0 ? gramsPerServing : null,
+    };
+
+    saveIngredients();
+    renderQuickDb();
+    renderIngredientsModalTable();
+
+    // if this ingredient was selected, update unit list
+    if(selectedKey === key) setUnitOptionsForKey(key);
+
+    renderCurrentDate();
+    alert("Ingredient saved.");
+  });
+
+  el("btnClearIngredient").addEventListener("click", () => {
+    el("ingName").value = "";
+    el("ingKcal").value = "";
+    el("ingP").value = "";
+    el("ingC").value = "";
+    el("ingF").value = "";
+    el("ingBase").value = "g";
+    el("gPiece").value = "";
+    el("gSlice").value = "";
+    el("gServing").value = "";
+    el("ingName").focus();
+  });
+
+  // History modal
+  el("btnHistory").addEventListener("click", openHistory);
+  el("btnCloseHistory").addEventListener("click", closeHistory);
+  el("modalHistory").addEventListener("click", (e) => { if(e.target === el("modalHistory")) closeHistory(); });
+
+  el("calPrev").addEventListener("click", () => {
+    const d = new Date(state.calYear, state.calMonth-1, 1);
+    state.calYear = d.getFullYear();
+    state.calMonth = d.getMonth();
+    renderCalendar();
+  });
+  el("calNext").addEventListener("click", () => {
+    const d = new Date(state.calYear, state.calMonth+1, 1);
+    state.calYear = d.getFullYear();
+    state.calMonth = d.getMonth();
+    renderCalendar();
+  });
+
+  // Export/Import
+  el("btnExport").addEventListener("click", exportData);
+  el("btnImport").addEventListener("click", () => {
+    if(!isSignedIn()){ openAuth(); return; }
+    el("importFile").click();
+  });
+  el("importFile").addEventListener("change", (e) => {
+    const file = e.target.files && e.target.files[0];
+    if(file) importDataFromFile(file);
+    e.target.value = "";
+  });
+
+  // Reset
+  el("btnReset").addEventListener("click", async () => {
+    if(!isSignedIn()){ openAuth(); return; }
+    if(confirm("Reset all data for this signed-in user (settings + ingredients + entries)? This cannot be undone.")){
+      if(isSupabaseConfigured()){
+        const { error } = await state.sb.client.from(DATA_TABLE).delete().eq("user_id", state.auth.currentUserId);
+        if(error){
+          alert("Failed to reset user data: " + error.message);
+          return;
+        }
+      }
+      await loadAll();
+      initUI();
+      alert("Current user data reset.");
+    }
+  });
+}
+
+/* -----------------------------------------
+   Defaults: starter-large DB
+------------------------------------------*/
+function addIng(db, name, base, kcal, p, c, f, conv={}){
+  const key = normalizeName(name);
+  db[key] = {
+    name,
+    base,
+    per100: { kcal, p, c, f },
+    gramsPerPiece: conv.gramsPerPiece ?? null,
+    gramsPerSlice: conv.gramsPerSlice ?? null,
+    gramsPerServing: conv.gramsPerServing ?? null,
+  };
+}
+
+function defaultIngredientsLarge(){
+  const db = {};
+  // Fruits
+  addIng(db,"Apple","g",52,0.3,13.8,0.2);
+  addIng(db,"Banana","g",89,1.1,22.8,0.3);
+  addIng(db,"Orange","g",47,0.9,11.8,0.1);
+  addIng(db,"Strawberries","g",32,0.7,7.7,0.3);
+  addIng(db,"Blueberries","g",57,0.7,14.5,0.3);
+  addIng(db,"Grapes","g",69,0.7,18.1,0.2);
+  addIng(db,"Pineapple","g",50,0.5,13.1,0.1);
+  addIng(db,"Mango","g",60,0.8,15.0,0.4);
+  addIng(db,"Avocado","g",160,2.0,8.5,14.7);
+  // Veg
+  addIng(db,"Broccoli","g",34,2.8,6.6,0.4);
+  addIng(db,"Carrot","g",41,0.9,9.6,0.2);
+  addIng(db,"Tomato","g",18,0.9,3.9,0.2);
+  addIng(db,"Cucumber","g",15,0.7,3.6,0.1);
+  addIng(db,"Spinach","g",23,2.9,3.6,0.4);
+  addIng(db,"Bell pepper","g",31,1.0,6.0,0.3);
+  addIng(db,"Onion","g",40,1.1,9.3,0.1);
+  addIng(db,"Lettuce","g",15,1.4,2.9,0.2);
+  addIng(db,"Sweet potato","g",86,1.6,20.1,0.1);
+  addIng(db,"Potato","g",77,2.0,17.0,0.1);
+  // Staples
+  addIng(db,"Oats","g",389,16.9,66.3,6.9);
+  addIng(db,"Rice, cooked","g",130,2.7,28.2,0.3);
+  addIng(db,"Pasta, cooked","g",131,5.0,25.0,1.1);
+  addIng(db,"Bread","g",265,9.0,49.0,3.2, {gramsPerSlice: 30});
+  addIng(db,"Tortilla","g",300,8.0,50.0,8.0);
+  addIng(db,"Corn flakes","g",357,7.5,84.0,0.4);
+  // Dairy (per 100ml)
+  addIng(db,"Milk (whole)","ml",64,3.3,4.8,3.6);
+  addIng(db,"Milk (skim)","ml",34,3.4,5.0,0.1);
+  addIng(db,"Almond milk (unsweetened)","ml",15,0.6,0.3,1.2);
+  addIng(db,"Oat milk","ml",45,1.0,6.7,1.5);
+  addIng(db,"Yogurt (plain)","g",59,10.0,3.6,0.4);
+  addIng(db,"Greek yogurt (plain)","g",97,9.0,3.6,5.0);
+  addIng(db,"Cheddar cheese","g",403,25.0,1.3,33.0);
+  addIng(db,"Cottage cheese","g",98,11.1,3.4,4.3);
+  // Proteins
+  addIng(db,"Egg (whole)","g",143,12.6,0.7,9.5, {gramsPerPiece: 50});
+  addIng(db,"Chicken breast, cooked","g",165,31.0,0.0,3.6);
+  addIng(db,"Chicken thigh, cooked","g",209,26.0,0.0,10.9);
+  addIng(db,"Turkey breast, cooked","g",135,30.0,0.0,1.0);
+  addIng(db,"Salmon, cooked","g",208,20.0,0.0,13.0);
+  addIng(db,"Tuna (canned in water)","g",116,26.0,0.0,0.8);
+  addIng(db,"Beef, cooked (lean)","g",250,26.0,0.0,15.0);
+  addIng(db,"Tofu","g",76,8.0,1.9,4.8);
+  // Legumes
+  addIng(db,"Lentils, cooked","g",116,9.0,20.0,0.4);
+  addIng(db,"Chickpeas, cooked","g",164,8.9,27.4,2.6);
+  addIng(db,"Black beans, cooked","g",132,8.9,23.7,0.5);
+  addIng(db,"Hummus","g",166,7.9,14.3,9.6);
+  // Fats & nuts
+  addIng(db,"Olive oil","g",884,0.0,0.0,100.0);
+  addIng(db,"Butter","g",717,0.9,0.1,81.0);
+  addIng(db,"Peanut butter","g",588,25.0,20.0,50.0);
+  addIng(db,"Almonds","g",579,21.0,22.0,50.0);
+  addIng(db,"Walnuts","g",654,15.0,14.0,65.0);
+  addIng(db,"Mixed nuts","g",607,20.0,21.0,54.0);
+  // Snacks/sweets
+  addIng(db,"Dark chocolate","g",546,4.9,61.0,31.0);
+  addIng(db,"Honey","g",304,0.3,82.0,0.0);
+  addIng(db,"Sugar","g",387,0.0,100.0,0.0);
+  // Drinks
+  addIng(db,"Coffee","ml",1,0.1,0.0,0.0);
+  addIng(db,"Tea","ml",1,0.0,0.0,0.0);
+  addIng(db,"Orange juice","ml",45,0.7,10.4,0.2);
+  // Extra common items
+  const extra = [
+    ["Quinoa, cooked","g",120,4.4,21.3,1.9],
+    ["Couscous, cooked","g",112,3.8,23.2,0.2],
+    ["Brown rice, cooked","g",111,2.6,23.0,0.9],
+    ["Pita bread","g",275,9.0,55.0,1.2],
+    ["Bagel","g",250,10.0,48.0,1.5],
+    ["Mozzarella","g",280,28.0,3.0,17.0],
+    ["Parmesan","g",431,38.0,4.0,29.0],
+    ["Granola","g",471,10.0,64.0,20.0],
+    ["Jam","g",250,0.5,65.0,0.2],
+    ["Ketchup","g",112,1.3,26.0,0.2],
+    ["Mayonnaise","g",680,1.0,1.0,75.0],
+    ["Soy sauce","g",53,8.1,4.9,0.6],
+    ["Tahini","g",595,17.0,21.0,53.0],
+    ["Sesame seeds","g",573,18.0,23.0,50.0],
+    ["Chia seeds","g",486,17.0,42.0,31.0],
+    ["Whey protein powder","g",400,80.0,10.0,6.0],
+    ["Protein bar","g",350,25.0,35.0,10.0],
+    ["Ribeye steak, grilled","g",291,24.8,0.0,21.0],
+    ["Sirloin steak, grilled","g",217,27.0,0.0,12.0],
+    ["T-bone steak, grilled","g",247,26.0,0.0,16.0],
+    ["Porterhouse steak, grilled","g",241,25.0,0.0,15.0],
+    ["Tenderloin steak, grilled","g",225,28.0,0.0,12.0],
+    ["Strip steak, grilled","g",271,26.0,0.0,18.0],
+    ["Flank steak, grilled","g",192,28.0,0.0,8.0],
+    ["Skirt steak, grilled","g",220,26.0,0.0,12.0],
+    ["Beef brisket, smoked","g",297,24.0,0.0,22.0],
+    ["Ground beef 90% lean, cooked","g",217,26.0,0.0,12.0],
+    ["Ground beef 80% lean, cooked","g",254,25.0,0.0,17.0],
+    ["Beef liver, cooked","g",175,26.0,5.0,5.0],
+    ["Beef kebab, grilled","g",250,21.0,4.0,16.0],
+    ["Chicken drumstick, roasted","g",216,27.0,0.0,11.0],
+    ["Chicken wing, roasted","g",290,27.0,0.0,20.0],
+    ["Chicken schnitzel, fried","g",266,21.0,14.0,14.0],
+    ["Chicken liver, sauteed","g",167,24.0,2.0,6.0],
+    ["Turkey thigh, roasted","g",203,27.0,0.0,10.0],
+    ["Turkey mince, cooked","g",189,27.0,0.0,8.0],
+    ["Duck breast, roasted","g",337,19.0,0.0,28.0],
+    ["Cornish hen, roasted","g",203,23.0,0.0,11.0],
+    ["Lamb chop, grilled","g",282,25.0,0.0,20.0],
+    ["Lamb shoulder, roasted","g",294,25.0,0.0,21.0],
+    ["Lamb kebab, grilled","g",265,22.0,3.0,18.0],
+    ["Veal cutlet, cooked","g",172,29.0,0.0,6.0],
+    ["Pork tenderloin, cooked","g",206,26.0,0.0,10.0],
+    ["Pork chop, grilled","g",231,25.0,0.0,14.0],
+    ["Pork shoulder, roasted","g",262,24.0,0.0,18.0],
+    ["Bacon, cooked","g",541,37.0,1.4,42.0],
+    ["Ham, sliced","g",145,21.0,1.5,5.5],
+    ["Goat meat, cooked","g",143,27.0,0.0,3.0],
+    ["Rabbit meat, cooked","g",173,33.0,0.0,3.5],
+    ["Beef sausage, grilled","g",301,13.0,2.0,27.0],
+    ["Turkey sausage, cooked","g",217,16.0,3.0,15.0],
+    ["Sardines in oil","g",208,25.0,0.0,11.0],
+    ["Mackerel, cooked","g",262,24.0,0.0,18.0],
+    ["Cod, baked","g",105,23.0,0.0,1.0],
+    ["Shrimp, cooked","g",99,24.0,0.2,0.3],
+    ["Tilapia, cooked","g",129,26.0,0.0,2.7],
+    ["Roast beef deli","g",148,21.0,2.0,6.0],
+    ["Pastrami","g",139,18.0,2.0,6.0],
+    ["Corned beef","g",251,18.0,0.0,18.0],
+    ["Kebab skewers, beef","g",252,19.0,5.0,17.0],
+    ["Kebab skewers, chicken","g",190,23.0,4.0,9.0],
+    ["Bamba peanut snack","g",515,12.0,54.0,27.0],
+    ["Bissli grill snack","g",500,12.0,63.0,22.0],
+    ["Bissli pizza snack","g",498,11.0,64.0,21.0],
+    ["Apropo corn snack","g",520,7.0,58.0,29.0],
+    ["Shkedi marak croutons","g",470,11.0,66.0,17.0],
+    ["Krembo","g",370,3.0,69.0,8.0,{gramsPerPiece:25}],
+    ["Pesek Zman bar","g",525,7.0,59.0,28.0,{gramsPerPiece:45}],
+    ["Halva","g",515,12.0,51.0,31.0],
+    ["Rugelach","g",420,6.0,53.0,21.0],
+    ["Chocolate rugelach","g",445,6.0,56.0,23.0],
+    ["Sufganiyah (jelly doughnut)","g",377,6.0,48.0,18.0,{gramsPerPiece:90}],
+    ["Bourekas cheese","g",370,9.0,34.0,22.0],
+    ["Bourekas potato","g",315,6.0,38.0,15.0],
+    ["Bourekas mushroom","g",320,7.0,36.0,16.0],
+    ["Malawach","g",412,7.0,43.0,24.0],
+    ["Jachnun","g",360,8.0,42.0,18.0],
+    ["Jerusalem bagel","g",292,9.0,56.0,3.0],
+    ["Sabich pita","g",210,6.0,28.0,8.0],
+    ["Falafel balls","g",333,13.0,31.0,18.0],
+    ["Shawarma chicken","g",235,23.0,2.0,15.0],
+    ["Shawarma turkey","g",210,24.0,2.0,11.0],
+    ["Shawarma lamb","g",282,22.0,3.0,20.0],
+    ["Kanafeh","g",360,8.0,42.0,18.0],
+    ["Baklava","g",430,6.0,52.0,22.0],
+    ["Date syrup (silan)","g",300,1.0,75.0,0.0],
+    ["Chocolate cake","g",389,5.0,58.0,16.0,{gramsPerSlice:95}],
+    ["Vanilla sponge cake","g",297,4.0,52.0,8.0,{gramsPerSlice:85}],
+    ["Cheesecake","g",321,6.0,25.0,22.0,{gramsPerSlice:110}],
+    ["New York cheesecake","g",350,6.0,27.0,25.0,{gramsPerSlice:120}],
+    ["Carrot cake","g",414,4.0,52.0,21.0,{gramsPerSlice:95}],
+    ["Red velvet cake","g",380,4.0,55.0,16.0,{gramsPerSlice:95}],
+    ["Apple cake","g",290,3.0,49.0,9.0,{gramsPerSlice:95}],
+    ["Honey cake","g",334,5.0,60.0,8.0,{gramsPerSlice:90}],
+    ["Marble cake","g",380,5.0,52.0,18.0,{gramsPerSlice:90}],
+    ["Black forest cake","g",320,5.0,41.0,16.0,{gramsPerSlice:110}],
+    ["Tiramisu cake","g",295,6.0,31.0,16.0,{gramsPerSlice:100}],
+    ["Lemon loaf cake","g",355,4.0,55.0,13.0,{gramsPerSlice:80}],
+    ["Pound cake","g",390,6.0,45.0,21.0,{gramsPerSlice:80}],
+    ["Brownie","g",466,5.0,60.0,23.0,{gramsPerPiece:40}],
+    ["Croissant","g",406,8.0,45.0,21.0,{gramsPerPiece:55}],
+    ["Chocolate croissant","g",424,8.0,47.0,22.0,{gramsPerPiece:75}],
+    ["Muffin, chocolate","g",410,6.0,50.0,20.0,{gramsPerPiece:90}],
+    ["Muffin, blueberry","g",377,5.0,53.0,15.0,{gramsPerPiece:90}],
+    ["Donut glazed","g",452,4.0,51.0,25.0,{gramsPerPiece:55}],
+    ["Ice cream, vanilla","g",207,3.5,24.0,11.0],
+    ["Ice cream, chocolate","g",216,3.8,25.0,12.0],
+    ["Pretzels","g",380,10.0,80.0,2.5],
+    ["Potato chips","g",536,7.0,53.0,35.0],
+    ["Popcorn, air-popped","g",387,13.0,78.0,4.5],
+    ["Rice cakes","g",387,7.0,81.0,3.0],
+    ["Chocolate spread","g",539,6.0,57.0,31.0],
+    ["Wafer cookies","g",517,6.0,61.0,28.0],
+    ["Pistachios","g",562,20.0,28.0,45.0],
+    ["Cashews","g",553,18.0,30.0,44.0],
+    ["Peanuts roasted","g",585,25.0,21.0,49.0],
+    ["Dates, Medjool","g",277,1.8,75.0,0.2],
+  ];
+  extra.forEach(x => addIng(db, ...x));
+  return db;
+}
+
+/* -----------------------------------------
+   Utilities
+------------------------------------------*/
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
+  }[c]));
+}
+function escapeAttr(s){ return escapeHtml(s).replace(/"/g,"&quot;"); }
+
+/* -----------------------------------------
+   Init
+------------------------------------------*/
+function initUI(){
+  state.currentDate = todayISO();
+  el("datePicker").value = state.currentDate;
+  if(isSignedIn()) ensureEntry(state.currentDate);
+
+  // initial units (neutral)
+  setUnitOptionsForKey(Object.keys(state.ingredients)[0] || null);
+  el("aiKeyInput").value = state.settings.openaiApiKey || "";
+  applyMobileMode();
+
+  renderCurrentDate();
+}
+
+async function init(){
+  loadSupabaseConfig();
+  bindEvents();
+  if(isSupabaseConfigured()){
+    await restoreSupabaseSession();
+  }
+  await loadAll();
+  refreshAuthUI();
+  initUI();
+}
+
+init().catch((err) => {
+  console.error("Init failed:", err);
+});
+</script>
+</body>
+</html>
