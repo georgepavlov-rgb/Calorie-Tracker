@@ -271,7 +271,7 @@
     .quickAddTop b{ font-size:13px; letter-spacing:.2px; }
     .quickAddForm{
       display:grid;
-      grid-template-columns: minmax(90px,.8fr) minmax(150px,1.8fr) minmax(90px,.8fr) minmax(90px,.8fr) minmax(120px,1fr);
+      grid-template-columns: minmax(90px,.8fr) minmax(150px,1.8fr) minmax(90px,.8fr) minmax(90px,.8fr);
       gap:10px;
       padding:12px;
       align-items:end;
@@ -287,6 +287,7 @@
       min-height: 42px;
       font-size: 14px;
       font-weight: 900;
+      grid-column: 1 / -1;
     }
     .photoForm{ grid-template-columns: minmax(240px,1.2fr) minmax(160px,.7fr); }
     .photoPreview{
