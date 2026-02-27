@@ -130,12 +130,15 @@
     .btn.secondary{ background: rgba(255,255,255,.05); box-shadow:none; }
     .btn.danger{ border-color: rgba(255,107,107,.35); background: rgba(255,107,107,.12); }
     .btn:disabled{
-      opacity:.45;
+      opacity:.35;
       cursor:not-allowed;
       transform:none;
       box-shadow:none;
-      filter: grayscale(.25);
+      filter: grayscale(.65) saturate(.35);
       pointer-events:none;
+      border-color: rgba(255,255,255,.08);
+      background: rgba(255,255,255,.03);
+      color: rgba(255,255,255,.45);
     }
 
     .grid{ display:grid; grid-template-columns: 1.1fr .9fr; gap:16px; align-items:start; }
