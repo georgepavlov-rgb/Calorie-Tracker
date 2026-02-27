@@ -1254,6 +1254,17 @@ function todayISO(){
   const local = new Date(d.getTime() - off*60*1000);
   return local.toISOString().slice(0,10);
 }
+function getBasePath(){
+  const path = window.location.pathname || "/";
+  if(path.endsWith("/")) return path;
+  const idx = path.lastIndexOf("/");
+  return idx >= 0 ? path.slice(0, idx + 1) : "/";
+}
+function getEmailConfirmationRedirectUrl(){
+  const proto = window.location.protocol || "";
+  if(proto !== "http:" && proto !== "https:") return "";
+  return `${window.location.origin}${getBasePath()}email-confirmed.html`;
+}
 function normalizeName(s){
   return (s || "").trim().toLowerCase().replace(/\s+/g, " ");
 }
@@ -2233,10 +2244,16 @@ async function signUp(){
     return;
   }
 
-  const { data, error } = await state.sb.client.auth.signUp({
+  const signUpPayload = {
     email: emailRaw,
     password: pw1
-  });
+  };
+  const emailRedirectTo = getEmailConfirmationRedirectUrl();
+  if(emailRedirectTo){
+    signUpPayload.options = { emailRedirectTo };
+  }
+
+  const { data, error } = await state.sb.client.auth.signUp(signUpPayload);
   if(error){
     setAuthStatus(`Sign up failed: ${error.message}`);
     return;

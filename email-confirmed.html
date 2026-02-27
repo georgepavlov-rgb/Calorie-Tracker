@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Email Confirmation - Daily Calorie Tracker V5</title>
+  <style>
+    :root{
+      --bg0:#0b1020;
+      --bg1:#0f1730;
+      --card: rgba(255,255,255,.06);
+      --stroke: rgba(255,255,255,.12);
+      --text:#e9ecff;
+      --muted: rgba(233,236,255,.72);
+      --good:#3ddc97;
+      --warn:#ffcc66;
+      --bad:#ff6b6b;
+      --shadow: 0 18px 50px rgba(0,0,0,.35);
+      --radius: 18px;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+    *{box-sizing:border-box}
+    html,body{min-height:100%}
+    html{
+      background-color: var(--bg0);
+      background-image:
+        radial-gradient(1200px 600px at 15% 10%, rgba(120,76,255,.25), transparent 60%),
+        radial-gradient(900px 520px at 85% 20%, rgba(61,220,151,.18), transparent 55%),
+        radial-gradient(800px 520px at 60% 90%, rgba(255,204,102,.16), transparent 60%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+      background-attachment: fixed;
+      background-repeat:no-repeat;
+      background-size:cover;
+    }
+    body{
+      margin:0;
+      font-family:var(--sans);
+      color:var(--text);
+      background:transparent;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:18px;
+    }
+    .panel{
+      width:min(760px, 100%);
+      background:var(--card);
+      border:1px solid var(--stroke);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+    .hd{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:16px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), transparent);
+      gap:10px;
+    }
+    h1{ margin:0; font-size:18px; font-weight:900; }
+    .sub{ margin-top:4px; font-size:12px; color:var(--muted); }
+    .bd{ padding:16px; }
+    .card{
+      background: rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:14px;
+      padding:14px;
+    }
+    .pill{
+      padding:4px 9px;
+      border-radius:999px;
+      font-size:12px;
+      font-weight:700;
+      border:1px solid rgba(255,255,255,.15);
+      color:var(--muted);
+      background: rgba(0,0,0,.14);
+      white-space:nowrap;
+    }
+    .pill.ok{ border-color: rgba(61,220,151,.30); color: var(--good); }
+    .pill.warn{ border-color: rgba(255,204,102,.30); color: var(--warn); }
+    .pill.error{ border-color: rgba(255,107,107,.30); color: var(--bad); }
+    .pill.pending{ border-color: rgba(255,255,255,.24); color: var(--text); }
+    .statusTitle{ font-size:20px; font-weight:900; margin:0 0 8px; }
+    .msg{ margin:0; color:var(--muted); line-height:1.45; }
+    .field{ display:flex; flex-direction:column; gap:6px; margin-top:10px; }
+    label{ font-size:12px; color:var(--muted); font-weight:800; }
+    input{
+      width:100%;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.18);
+      color:var(--text);
+      padding:10px;
+      outline:none;
+      font-size:13px;
+    }
+    .row{ display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+    .btn{
+      border:1px solid var(--stroke);
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
+      color:var(--text);
+      padding:10px 12px;
+      border-radius:12px;
+      cursor:pointer;
+      font-size:13px;
+      font-weight:800;
+    }
+    .btn.secondary{ background: rgba(255,255,255,.05); }
+    .hint{ margin-top:8px; font-size:12px; color:var(--muted); }
+    .hidden{ display:none !important; }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <div class="hd">
+      <div>
+        <h1>Daily Calorie Tracker V5</h1>
+        <div class="sub">Email verification</div>
+      </div>
+      <span id="statusPill" class="pill pending">checking</span>
+    </div>
+    <div class="bd">
+      <div class="card">
+        <h2 id="statusTitle" class="statusTitle">Verifying your email...</h2>
+        <p id="statusMsg" class="msg">Please wait while the confirmation link is validated.</p>
+        <div class="row">
+          <button id="btnOpenApp" class="btn" type="button">Open app</button>
+          <button id="btnRetry" class="btn secondary" type="button">Retry verification</button>
+        </div>
+      </div>
+
+      <div id="adminCard" class="card hidden" style="margin-top:12px">
+        <h3 style="margin:0 0 8px">Admin connection required</h3>
+        <p class="msg">Set Supabase URL and anon key for this browser, then retry verification.</p>
+        <div class="field">
+          <label for="sbUrl">Supabase URL</label>
+          <input id="sbUrl" type="text" placeholder="https://YOUR-PROJECT.supabase.co" />
+        </div>
+        <div class="field">
+          <label for="sbAnon">Supabase anon key</label>
+          <input id="sbAnon" type="password" placeholder="eyJ..." autocomplete="off" />
+        </div>
+        <div class="row">
+          <button id="btnSaveConfig" class="btn" type="button">Save connection</button>
+        </div>
+        <div class="hint">Use anon key only, never service_role key.</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const LS_SB_URL = "dct_v5_supabase_url";
+    const LS_SB_ANON = "dct_v5_supabase_anon";
+    let sb = null;
+
+    const el = (id) => document.getElementById(id);
+
+    function getBasePath(){
+      const path = window.location.pathname || "/";
+      if(path.endsWith("/")) return path;
+      const idx = path.lastIndexOf("/");
+      return idx >= 0 ? path.slice(0, idx + 1) : "/";
+    }
+    function appUrl(){
+      return `${window.location.origin}${getBasePath()}`;
+    }
+
+    function setStatus(kind, title, msg){
+      const pill = el("statusPill");
+      pill.className = `pill ${kind}`;
+      pill.textContent = kind === "ok" ? "success" : (kind === "error" ? "failed" : (kind === "warn" ? "action needed" : "checking"));
+      el("statusTitle").textContent = title;
+      el("statusMsg").textContent = msg;
+    }
+
+    function configureClient(url, anon, persist = true){
+      const cleanUrl = String(url || "").trim();
+      const cleanAnon = String(anon || "").trim();
+      if(!cleanUrl || !cleanAnon) return false;
+      if(!window.supabase || !window.supabase.createClient) return false;
+      sb = window.supabase.createClient(cleanUrl, cleanAnon, {
+        auth: { persistSession: true, autoRefreshToken: true }
+      });
+      if(persist){
+        localStorage.setItem(LS_SB_URL, cleanUrl);
+        localStorage.setItem(LS_SB_ANON, cleanAnon);
+      }
+      el("sbUrl").value = cleanUrl;
+      el("sbAnon").value = cleanAnon;
+      return true;
+    }
+
+    function loadStoredConfig(){
+      const url = localStorage.getItem(LS_SB_URL) || "";
+      const anon = localStorage.getItem(LS_SB_ANON) || "";
+      el("sbUrl").value = url;
+      el("sbAnon").value = anon;
+      if(url && anon){
+        configureClient(url, anon, false);
+      }
+    }
+
+    function clearSensitiveUrl(){
+      if(window.history && window.history.replaceState){
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    }
+
+    function parseParams(){
+      const qs = new URLSearchParams(window.location.search);
+      const hs = new URLSearchParams((window.location.hash || "").replace(/^#/, ""));
+      return { qs, hs };
+    }
+
+    function hasToken(qs, hs){
+      return !!(qs.get("code") || qs.get("token_hash") || (hs.get("access_token") && hs.get("refresh_token")));
+    }
+
+    async function verifyEmailFlow(){
+      const { qs, hs } = parseParams();
+
+      if(!hasToken(qs, hs)){
+        setStatus("warn", "No verification token found", "Open this page from the confirmation link in your email.");
+        return;
+      }
+
+      if(!sb){
+        el("adminCard").classList.remove("hidden");
+        setStatus("warn", "Supabase connection required", "Set Supabase URL and anon key, then retry verification.");
+        return;
+      }
+
+      setStatus("pending", "Verifying your email...", "Please wait while the confirmation link is validated.");
+      try{
+        if(qs.get("code")){
+          const { error } = await sb.auth.exchangeCodeForSession(qs.get("code"));
+          if(error) throw error;
+        } else if(qs.get("token_hash")){
+          const type = qs.get("type") || "signup";
+          const { error } = await sb.auth.verifyOtp({
+            token_hash: qs.get("token_hash"),
+            type
+          });
+          if(error) throw error;
+        } else {
+          const { error } = await sb.auth.setSession({
+            access_token: hs.get("access_token"),
+            refresh_token: hs.get("refresh_token")
+          });
+          if(error) throw error;
+        }
+
+        const { data } = await sb.auth.getUser();
+        clearSensitiveUrl();
+        const email = data?.user?.email ? `Confirmed for ${data.user.email}.` : "Your email is confirmed.";
+        setStatus("ok", "Email confirmation successful", `${email} Return to the app and sign in.`);
+      } catch (err){
+        el("adminCard").classList.remove("hidden");
+        setStatus("error", "Email confirmation failed", err?.message || "The link is invalid or expired.");
+      }
+    }
+
+    el("btnOpenApp").addEventListener("click", () => {
+      window.location.href = appUrl();
+    });
+    el("btnRetry").addEventListener("click", async () => {
+      await verifyEmailFlow();
+    });
+    el("btnSaveConfig").addEventListener("click", async () => {
+      const ok = configureClient(el("sbUrl").value, el("sbAnon").value, true);
+      if(!ok){
+        setStatus("warn", "Invalid connection details", "Enter a valid Supabase URL and anon key.");
+        return;
+      }
+      await verifyEmailFlow();
+    });
+
+    loadStoredConfig();
+    verifyEmailFlow().catch((err) => {
+      setStatus("error", "Verification failed", err?.message || "Unexpected error.");
+    });
+  </script>
+</body>
+</html>
