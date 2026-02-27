@@ -605,6 +605,7 @@
       </div>
       <div class="actions">
         <div class="authUser"><span>User:</span> <b id="userBadge">Not signed in</b></div>
+        <button class="btn secondary" id="btnAdminAccess">⚙️ Admin access</button>
         <button class="btn secondary" id="btnAuth">🔐 Sign in / Sign up</button>
         <button class="btn secondary hidden" id="btnSignOut">🚪 Sign out</button>
         <button class="btn secondary" id="btnMobileMode">📱 Mobile view</button>
@@ -860,24 +861,7 @@
         </div>
       </div>
       <div class="modalBody">
-        <div class="card" style="box-shadow:none">
-          <div class="hd">
-            <div>
-              <h2>Supabase connection</h2>
-              <div class="hint">Users, ingredients, goals, and records are stored in Supabase for V5.</div>
-            </div>
-          </div>
-          <div class="bd">
-            <div class="field">
-              <label for="supabaseUrlInput">Supabase URL</label>
-              <input id="supabaseUrlInput" type="text" placeholder="https://YOUR-PROJECT.supabase.co" />
-            </div>
-            <div class="field" style="margin-top:10px">
-              <label for="supabaseAnonInput">Supabase anon key</label>
-              <input id="supabaseAnonInput" type="password" placeholder="eyJ..." autocomplete="off" />
-            </div>
-          </div>
-        </div>
+        <div class="footerNote" style="margin-top:0">Supabase setup is managed separately in <b>Admin access</b>.</div>
 
         <div id="authChoicePane" class="authChoice">
           <button class="btn" id="btnChooseSignIn" type="button">Sign in</button>
@@ -938,6 +922,43 @@
           <button class="btn secondary authBack" id="btnAuthBackFromSignUp" type="button">Back</button>
         </div>
         <div class="footerNote" id="authStatusLine" style="margin-top:12px">Sign in or create an account to start.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADMIN MODAL -->
+  <div class="modalOverlay" id="modalAdmin">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Admin access">
+      <div class="modalTop">
+        <h3>Admin access</h3>
+        <div class="row">
+          <button class="btn secondary" id="btnCloseAdmin">✕ Close</button>
+        </div>
+      </div>
+      <div class="modalBody">
+        <div class="card" style="box-shadow:none">
+          <div class="hd">
+            <div>
+              <h2>Supabase connection</h2>
+              <div class="hint">Configure project URL + anon key for this device. User sign in/up is kept separate.</div>
+            </div>
+          </div>
+          <div class="bd">
+            <div class="field">
+              <label for="supabaseUrlInput">Supabase URL</label>
+              <input id="supabaseUrlInput" type="text" placeholder="https://YOUR-PROJECT.supabase.co" />
+            </div>
+            <div class="field" style="margin-top:10px">
+              <label for="supabaseAnonInput">Supabase anon key</label>
+              <input id="supabaseAnonInput" type="password" placeholder="eyJ..." autocomplete="off" />
+            </div>
+            <div class="row" style="margin-top:12px">
+              <button class="btn" id="btnSaveSupabaseConfig" type="button">Save connection</button>
+              <button class="btn secondary" id="btnClearSupabaseConfig" type="button">Clear connection</button>
+            </div>
+          </div>
+        </div>
+        <div class="footerNote" id="adminStatusLine" style="margin-top:12px">Set Supabase connection details to enable user access.</div>
       </div>
     </div>
   </div>
@@ -1250,6 +1271,9 @@ function clamp(n, min, max){ return Math.min(max, Math.max(min, n)); }
 function setAuthStatus(msg){
   el("authStatusLine").textContent = msg;
 }
+function setAdminStatus(msg){
+  el("adminStatusLine").textContent = msg;
+}
 
 function showAuthChooser(){
   el("authChoicePane").classList.remove("hidden");
@@ -1341,8 +1365,13 @@ function openAuth(){
   el("modalAuth").style.display = "flex";
   showAuthChooser();
   setAuthStatus("Choose sign in or sign up, then continue.");
+}
+function closeAdmin(){ el("modalAdmin").style.display = "none"; }
+function openAdmin(){
+  el("modalAdmin").style.display = "flex";
   el("supabaseUrlInput").value = state.sb.url || localStorage.getItem(LS_SB_URL) || "";
   el("supabaseAnonInput").value = state.sb.anonKey || localStorage.getItem(LS_SB_ANON) || "";
+  setAdminStatus(isSupabaseConfigured() ? "Connection is configured on this device." : "Enter Supabase URL + anon key, then save.");
 }
 
 function refreshAuthUI(){
@@ -2170,16 +2199,23 @@ function saveSupabaseConfigFromInputs(){
   const url = String(el("supabaseUrlInput").value || "").trim();
   const anon = String(el("supabaseAnonInput").value || "").trim();
   if(!url || !anon){
-    setAuthStatus("Enter Supabase URL and anon key.");
+    setAdminStatus("Enter Supabase URL and anon key.");
     return false;
   }
   const ok = configureSupabaseClient(url, anon, true);
-  if(ok) setAuthStatus("Supabase config saved.");
+  if(ok){
+    setAdminStatus("Supabase config saved.");
+    setAuthStatus("Supabase config ready. You can sign in now.");
+  }
   return ok;
 }
 
 async function signUp(){
-  if(!isSupabaseConfigured() && !saveSupabaseConfigFromInputs()) return;
+  if(!isSupabaseConfigured()){
+    setAuthStatus("Admin setup required first. Open Admin access and save Supabase connection.");
+    openAdmin();
+    return;
+  }
   const emailRaw = String(el("signUpEmail").value || "").trim().toLowerCase();
   const pw1 = String(el("signUpPassword").value || "");
   const pw2 = String(el("signUpPassword2").value || "");
@@ -2221,7 +2257,11 @@ async function signUp(){
 }
 
 async function signIn(){
-  if(!isSupabaseConfigured() && !saveSupabaseConfigFromInputs()) return;
+  if(!isSupabaseConfigured()){
+    setAuthStatus("Admin setup required first. Open Admin access and save Supabase connection.");
+    openAdmin();
+    return;
+  }
   const emailRaw = String(el("signInEmail").value || "").trim().toLowerCase();
   const pw = String(el("signInPassword").value || "");
   const { data, error } = await state.sb.client.auth.signInWithPassword({
@@ -2565,6 +2605,41 @@ function importDataFromFile(file){
 ------------------------------------------*/
 function bindEvents(){
   window.addEventListener("resize", applyMobileMode);
+
+  // Admin config
+  el("btnAdminAccess").addEventListener("click", openAdmin);
+  el("btnCloseAdmin").addEventListener("click", closeAdmin);
+  el("modalAdmin").addEventListener("click", (e) => { if(e.target === el("modalAdmin")) closeAdmin(); });
+  el("btnSaveSupabaseConfig").addEventListener("click", async () => {
+    if(!saveSupabaseConfigFromInputs()) return;
+    state.auth.currentUserId = null;
+    state.auth.currentEmail = "";
+    await restoreSupabaseSession();
+    await loadAll();
+    refreshAuthUI();
+    initUI();
+    if(isSignedIn()){
+      setAdminStatus(`Connected. Restored session for ${state.auth.currentEmail}.`);
+    } else {
+      setAdminStatus("Connected. Users can now sign in or sign up.");
+    }
+  });
+  el("btnClearSupabaseConfig").addEventListener("click", async () => {
+    localStorage.removeItem(LS_SB_URL);
+    localStorage.removeItem(LS_SB_ANON);
+    state.sb.url = "";
+    state.sb.anonKey = "";
+    state.sb.client = null;
+    state.auth.currentUserId = null;
+    state.auth.currentEmail = "";
+    el("supabaseUrlInput").value = "";
+    el("supabaseAnonInput").value = "";
+    await loadAll();
+    refreshAuthUI();
+    initUI();
+    setAdminStatus("Supabase connection cleared from this device.");
+    setAuthStatus("Supabase not configured. Ask admin to set connection.");
+  });
 
   // Auth + session
   el("btnAuth").addEventListener("click", openAuth);
