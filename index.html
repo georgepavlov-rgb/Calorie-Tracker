@@ -232,22 +232,22 @@
     .quickAddTop b{ font-size:13px; letter-spacing:.2px; }
     .quickAddForm{
       display:grid;
-      grid-template-columns: .9fr 1.4fr .6fr .7fr auto;
+      grid-template-columns: minmax(110px,.9fr) minmax(220px,1.4fr) minmax(100px,.7fr) minmax(120px,.8fr) minmax(150px,auto);
       gap:10px;
       padding:12px;
       align-items:end;
       overflow: visible;
       position: relative;
     }
-    .quickAddForm .btn{ min-width: 140px; justify-content:center; }
+    .quickAddForm > *{ min-width:0; }
+    .quickAddForm .field{ min-width:0; }
+    .quickAddForm .btn{ min-width: 0; width:100%; justify-content:center; }
     .quickAddForm .btn.addPrimary{
       min-height: 42px;
       font-size: 14px;
       font-weight: 900;
     }
-    .photoForm{
-      grid-template-columns: 1.2fr .7fr 1fr auto;
-    }
+    .photoForm{ grid-template-columns: minmax(180px,1.2fr) minmax(160px,.7fr) minmax(220px,1fr) minmax(150px,auto); }
     .photoPreview{
       width:100%;
       max-height:240px;
@@ -269,9 +269,14 @@
       min-height: 40px;
     }
 
-    @media (max-width: 900px){
+    @media (max-width: 1240px){
       .quickAddForm{ grid-template-columns: 1fr 1fr; }
       .quickAddForm .btn{ grid-column: 1 / -1; justify-content:center; }
+      .photoForm{ grid-template-columns:1fr 1fr; }
+      .photoForm .btn{ grid-column:1 / -1; }
+    }
+
+    @media (max-width: 900px){
       .photoForm{ grid-template-columns:1fr; }
       .photoForm .btn{ grid-column:auto; }
     }
@@ -666,9 +671,9 @@
             <div class="metric" id="macroMetric">
               <div class="label"><span>Macros</span><span class="pill">g</span></div>
               <div class="value" style="font-size:14px; line-height:1.4">
-                <div class="macroLine"><span class="smallMuted">Protein</span><span class="r"><b id="macroP">0</b>/<b id="macroGoalP">0</b>g • left <b id="macroRemP">0</b>g</span></div>
-                <div class="macroLine"><span class="smallMuted">Carbs</span><span class="r"><b id="macroC">0</b>/<b id="macroGoalC">0</b>g • left <b id="macroRemC">0</b>g</span></div>
-                <div class="macroLine"><span class="smallMuted">Fat</span><span class="r"><b id="macroF">0</b>/<b id="macroGoalF">0</b>g • left <b id="macroRemF">0</b>g</span></div>
+                <div class="macroLine"><span class="smallMuted">Protein</span><span class="r"><b id="macroP">0</b>/<b id="macroGoalP">0</b>g</span></div>
+                <div class="macroLine"><span class="smallMuted">Carbs</span><span class="r"><b id="macroC">0</b>/<b id="macroGoalC">0</b>g</span></div>
+                <div class="macroLine"><span class="smallMuted">Fat</span><span class="r"><b id="macroF">0</b>/<b id="macroGoalF">0</b>g</span></div>
               </div>
             </div>
           </div>
@@ -1844,9 +1849,7 @@ function renderSummary(){
   const remaining = goal - totals.kcal;
   const overGoal = goal > 0 && remaining < 0;
   const macroGoal = getMacroGoalFromKcal(goal);
-  const macroRemP = macroGoal.grams.p - totals.p;
-  const macroRemC = macroGoal.grams.c - totals.c;
-  const macroRemF = macroGoal.grams.f - totals.f;
+  const macroOver = (totals.p > macroGoal.grams.p || totals.c > macroGoal.grams.c || totals.f > macroGoal.grams.f);
 
   el("goalDisplay").textContent = round0(goal);
   el("consumedDisplay").textContent = round0(totals.kcal);
@@ -1858,14 +1861,11 @@ function renderSummary(){
   el("macroGoalP").textContent = round0(macroGoal.grams.p);
   el("macroGoalC").textContent = round0(macroGoal.grams.c);
   el("macroGoalF").textContent = round0(macroGoal.grams.f);
-  el("macroRemP").textContent = round0(macroRemP);
-  el("macroRemC").textContent = round0(macroRemC);
-  el("macroRemF").textContent = round0(macroRemF);
 
   setStatusPill(totals.kcal, goal);
   el("defaultGoalLine").textContent = `Default goal: ${round0(state.settings.defaultGoalKcal)} kcal`;
   el("consumedMetric").classList.toggle("over", overGoal);
-  el("macroMetric").classList.toggle("over", (macroRemP < 0 || macroRemC < 0 || macroRemF < 0));
+  el("macroMetric").classList.toggle("over", macroOver);
 
   renderMiniConsumed();
   renderMacroGoals();
@@ -1997,9 +1997,6 @@ function renderCurrentDate(){
     el("macroGoalP").textContent = "0";
     el("macroGoalC").textContent = "0";
     el("macroGoalF").textContent = "0";
-    el("macroRemP").textContent = "0";
-    el("macroRemC").textContent = "0";
-    el("macroRemF").textContent = "0";
     el("miniConsumed").innerHTML = `<div class="smallMuted">Sign in to view consumed items.</div>`;
     el("statusPill").className = "pill warn";
     el("statusPill").textContent = "locked";
