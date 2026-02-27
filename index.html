@@ -281,7 +281,7 @@
       font-size: 14px;
       font-weight: 900;
     }
-    .photoForm{ grid-template-columns: minmax(180px,1.2fr) minmax(160px,.7fr) minmax(220px,1fr) minmax(150px,auto); }
+    .photoForm{ grid-template-columns: minmax(240px,1.2fr) minmax(160px,.7fr); }
     .photoPreview{
       width:100%;
       max-height:240px;
@@ -907,11 +907,6 @@
                   <option value="snack">Snack</option>
                 </select>
               </div>
-              <div class="field">
-                <label for="aiKeyInput">OpenAI API key (optional save)</label>
-                <input id="aiKeyInput" type="password" placeholder="sk-..." autocomplete="off" />
-              </div>
-              <button class="btn" id="btnAnalyzePhoto" type="button">🖼️ Analyze picture</button>
             </div>
             <div class="aiTextBar">
               <div class="field">
@@ -919,7 +914,7 @@
                 <textarea id="aiMealTextInput" placeholder="Example: lunch - 250g chicken breast, 150g rice, 1 tbsp olive oil, 1 slice chocolate cake"></textarea>
               </div>
               <div class="row" style="margin-top:10px">
-                <button class="btn" id="btnAnalyzeMealText" type="button">✨ Analyze text and add to consumed</button>
+                <button class="btn" id="btnAnalyzeInteractiveAI" type="button">✨ Analyze text/picture</button>
               </div>
             </div>
             <div class="photoStatus" id="photoStatus">No AI analysis yet.</div>
@@ -1637,6 +1632,7 @@ const COOKIE_KEEP_SIGNED_IN = "dct_v6_keep_signed_in";
 const COOKIE_SB_ACCESS = "dct_v6_sb_access_token";
 const COOKIE_SB_REFRESH = "dct_v6_sb_refresh_token";
 const KEEP_SIGNED_IN_DAYS = 45;
+const DEFAULT_OPENAI_API_KEY = "";
 const DATA_TABLE = "dct_user_data";
 const ADMIN_TABLE = "dct_admin_users";
 const ADMIN_ROOT_EMAIL = "georgepavlov@live.com";
@@ -1713,6 +1709,9 @@ function randomId(prefix){
 }
 function isSignedIn(){ return !!state.auth.currentUserId; }
 function clamp(n, min, max){ return Math.min(max, Math.max(min, n)); }
+function getOpenAiApiKey(){
+  return String(state.settings?.openaiApiKey || DEFAULT_OPENAI_API_KEY || "").trim();
+}
 function setCookie(name, value, days){
   const ttlDays = Number.isFinite(days) ? Math.max(0, days) : 0;
   let expires = "";
@@ -2960,15 +2959,12 @@ function renderPhotoDrafts(){
   }));
 }
 
-function commitPhotoDraftRows(sourceLabel = "interactive AI"){
+function appendRowsToEntry(rows, sourceLabel = "interactive AI"){
   if(!isSignedIn()){ openAuth(); return 0; }
-  if(!state.photoDrafts.length){
-    el("photoStatus").textContent = "No recognized rows to add.";
-    return 0;
-  }
+  if(!Array.isArray(rows) || !rows.length) return 0;
   const entry = ensureEntry(state.currentDate);
   let added = 0;
-  for(const row of state.photoDrafts){
+  for(const row of rows){
     const ing = state.ingredients[row.ingKey];
     if(!ing) continue;
     if(convertAmountToBase(row.amount, row.unit, ing) === null) continue;
@@ -2981,10 +2977,21 @@ function commitPhotoDraftRows(sourceLabel = "interactive AI"){
     });
     added += 1;
   }
+  if(!added) return 0;
   saveEntries();
-  state.photoDrafts = [];
   renderCurrentDate();
   el("photoStatus").textContent = `Added ${added} item(s) from ${sourceLabel}.`;
+  return added;
+}
+function commitPhotoDraftRows(sourceLabel = "interactive AI"){
+  if(!isSignedIn()){ openAuth(); return 0; }
+  if(!state.photoDrafts.length){
+    el("photoStatus").textContent = "No recognized rows to add.";
+    return 0;
+  }
+  const added = appendRowsToEntry(state.photoDrafts, sourceLabel);
+  state.photoDrafts = [];
+  renderPhotoDrafts();
   return added;
 }
 
@@ -3076,7 +3083,7 @@ function fallbackTextGuess(mealText){
 }
 
 async function analyzePhotoWithOpenAI(dataUrl){
-  const apiKey = String(el("aiKeyInput").value || "").trim() || state.settings.openaiApiKey;
+  const apiKey = getOpenAiApiKey();
   if(!apiKey) return { ok:false, reason:"missing_key" };
 
   const ingredients = Object.values(state.ingredients).map(x => x.name).sort((a,b)=> a.localeCompare(b));
@@ -3121,7 +3128,7 @@ async function analyzePhotoWithOpenAI(dataUrl){
 }
 
 async function analyzeMealTextWithOpenAI(mealText){
-  const apiKey = String(el("aiKeyInput").value || "").trim() || state.settings.openaiApiKey;
+  const apiKey = getOpenAiApiKey();
   if(!apiKey) return { ok:false, reason:"missing_key" };
   const cleanText = String(mealText || "").trim();
   if(!cleanText) return { ok:false, reason:"empty_text" };
@@ -3331,7 +3338,6 @@ async function afterAuthChange(){
   state.quickSearch = "";
   selectedKey = null;
   setUnitOptionsForKey(Object.keys(state.ingredients)[0] || null);
-  el("aiKeyInput").value = state.settings.openaiApiKey || "";
   state.photoDrafts = [];
   el("photoStatus").textContent = "No AI analysis yet.";
   el("photoPreview").style.display = "none";
@@ -3644,7 +3650,6 @@ function importDataFromFile(file){
         state.entries = payload.entries;
         saveSettings(); saveIngredients(); saveEntries();
         applyMobileMode();
-        el("aiKeyInput").value = state.settings.openaiApiKey || "";
 
         // reset selection
         selectedKey = null;
@@ -3922,19 +3927,17 @@ function bindEvents(){
       el("photoPreview").style.display = "none";
       return;
     }
-    el("photoStatus").textContent = `Selected: ${file.name}. Click "Analyze picture" to detect food.`;
+    el("photoStatus").textContent = `Selected: ${file.name}. Click "Analyze text/picture".`;
   });
-  el("aiKeyInput").addEventListener("change", () => {
-    state.settings.openaiApiKey = String(el("aiKeyInput").value || "").trim();
-    if(isSignedIn()) saveSettings();
-  });
-  el("btnAnalyzePhoto").addEventListener("click", async () => {
+  el("btnAnalyzeInteractiveAI").addEventListener("click", async () => {
     if(!isSignedIn()){ openAuth(); return; }
     const file = el("foodPhotoInput").files && el("foodPhotoInput").files[0];
-    if(!file){
-      el("photoStatus").textContent = "Pick a photo first.";
+    const mealText = String(el("aiMealTextInput").value || "").trim();
+    if(!file && !mealText){
+      el("photoStatus").textContent = "Add a picture, text, or both, then click Analyze text/picture.";
       return;
     }
+
     const toDataUrl = (f) => new Promise((resolve, reject) => {
       const r = new FileReader();
       r.onload = () => resolve(String(r.result || ""));
@@ -3942,81 +3945,67 @@ function bindEvents(){
       r.readAsDataURL(f);
     });
 
-    try{
-      const dataUrl = await toDataUrl(file);
-      el("photoPreview").src = dataUrl;
-      el("photoPreview").style.display = "block";
-      state.settings.openaiApiKey = String(el("aiKeyInput").value || "").trim();
-      saveSettings();
-      el("photoStatus").textContent = "Analyzing photo...";
+    const autoRows = [];
+    const reviewRows = [];
 
-      let rows = [];
-      const ai = await analyzePhotoWithOpenAI(dataUrl);
-      if(ai.ok){
-        rows = mapAiItemsToRows(ai.items);
+    try{
+      el("photoStatus").textContent = "Analyzing text/picture...";
+
+      if(file){
+        const dataUrl = await toDataUrl(file);
+        el("photoPreview").src = dataUrl;
+        el("photoPreview").style.display = "block";
+        const aiPhoto = await analyzePhotoWithOpenAI(dataUrl);
+        const photoRows = aiPhoto.ok ? mapAiItemsToRows(aiPhoto.items) : [];
+        if(photoRows.length){
+          autoRows.push(...photoRows);
+        } else {
+          reviewRows.push(...fallbackPhotoGuess(file.name));
+        }
       }
-      if(!rows.length){
-        rows = fallbackPhotoGuess(file.name);
-        el("photoStatus").textContent = "AI could not return clear matches. Added editable fallback rows.";
-      } else {
-        el("photoStatus").textContent = `Recognized ${rows.length} item(s). Edit rows before adding.`;
+
+      if(mealText){
+        const aiText = await analyzeMealTextWithOpenAI(mealText);
+        const textRows = aiText.ok ? mapAiItemsToRows(aiText.items) : [];
+        if(textRows.length){
+          autoRows.push(...textRows);
+        } else {
+          autoRows.push(...fallbackTextGuess(mealText));
+        }
       }
 
       state.photoDrafts = [];
-      rows.forEach(pushPhotoDraft);
-      renderPhotoDrafts();
-    } catch (err){
-      const rows = fallbackPhotoGuess(file.name);
-      state.photoDrafts = [];
-      rows.forEach(pushPhotoDraft);
-      renderPhotoDrafts();
-      el("photoStatus").textContent = `Photo analysis failed (${err?.message || err}). Added editable fallback rows.`;
-    }
-  });
-  el("btnAnalyzeMealText").addEventListener("click", async () => {
-    if(!isSignedIn()){ openAuth(); return; }
-    const mealText = String(el("aiMealTextInput").value || "").trim();
-    if(!mealText){
-      el("photoStatus").textContent = "Write what you ate first.";
-      el("aiMealTextInput").focus();
-      return;
-    }
-    state.settings.openaiApiKey = String(el("aiKeyInput").value || "").trim();
-    if(isSignedIn()) saveSettings();
-    el("photoStatus").textContent = "Analyzing text...";
-    try{
-      const ai = await analyzeMealTextWithOpenAI(mealText);
-      let rows = [];
-      if(ai.ok){
-        rows = mapAiItemsToRows(ai.items);
+      if(autoRows.length){
+        const added = appendRowsToEntry(autoRows, "interactive AI");
+        if(added > 0) el("aiMealTextInput").value = "";
       }
-      if(!rows.length){
-        rows = fallbackTextGuess(mealText);
-        state.photoDrafts = [];
-        rows.forEach(pushPhotoDraft);
+      if(reviewRows.length){
+        reviewRows.forEach(pushPhotoDraft);
         renderPhotoDrafts();
-        el("photoStatus").textContent = "Could not confidently map text with AI. Added editable suggestions. Review and click 'Add recognized to consumed'.";
-        return;
-      }
-      state.photoDrafts = [];
-      rows.forEach(pushPhotoDraft);
-      renderPhotoDrafts();
-      const added = commitPhotoDraftRows("AI text");
-      if(added > 0){
-        el("aiMealTextInput").value = "";
+        if(autoRows.length){
+          el("photoStatus").textContent = "Added AI matches. Some items need review before adding.";
+        } else {
+          el("photoStatus").textContent = "AI could not confidently map some items. Review suggestions and click 'Add recognized to consumed'.";
+        }
+      } else if(autoRows.length){
+        renderPhotoDrafts();
       }
     } catch (err){
-      const rows = fallbackTextGuess(mealText);
       state.photoDrafts = [];
-      rows.forEach(pushPhotoDraft);
+      if(mealText){
+        const fallbackTextRows = fallbackTextGuess(mealText);
+        const addedTextFallback = appendRowsToEntry(fallbackTextRows, "interactive AI text fallback");
+        if(addedTextFallback > 0) el("aiMealTextInput").value = "";
+      }
+      if(file) fallbackPhotoGuess(file.name).forEach(pushPhotoDraft);
       renderPhotoDrafts();
-      el("photoStatus").textContent = `Text analysis failed (${err?.message || err}). Added editable suggestions.`;
+      el("photoStatus").textContent = `Analysis failed (${err?.message || err}). Added editable suggestions.`;
     }
   });
   el("aiMealTextInput").addEventListener("keydown", async (e) => {
     if((e.metaKey || e.ctrlKey) && e.key === "Enter"){
       e.preventDefault();
-      el("btnAnalyzeMealText").click();
+      el("btnAnalyzeInteractiveAI").click();
     }
   });
   el("btnAddPhotoRow").addEventListener("click", () => {
@@ -4493,7 +4482,6 @@ function initUI(){
 
   // initial units (neutral)
   setUnitOptionsForKey(Object.keys(state.ingredients)[0] || null);
-  el("aiKeyInput").value = state.settings.openaiApiKey || "";
   applyMobileMode();
 
   renderCurrentDate();
