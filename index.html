@@ -248,33 +248,14 @@
     .miniItem{
       display:flex; justify-content:space-between; gap:10px;
       font-variant-numeric: tabular-nums;
-      align-items:center;
-      padding:3px 0;
     }
     .miniItem .left{
       overflow:hidden;
       text-overflow:ellipsis;
       white-space:nowrap;
-      max-width: 55%;
+      max-width: 70%;
     }
     .miniItem b{ white-space:nowrap; }
-    .miniRight{
-      display:flex;
-      align-items:center;
-      gap:8px;
-      flex-shrink:0;
-    }
-    .miniActions{
-      display:flex;
-      gap:4px;
-    }
-    .miniActionBtn{
-      padding:4px 7px;
-      font-size:11px;
-      border-radius:8px;
-      box-shadow:none;
-      line-height:1;
-    }
 
     .divider{ height:1px; background: rgba(255,255,255,.08); margin:12px 0; }
 
@@ -2840,42 +2821,13 @@ function renderMiniConsumed(){
   }
 
   // show full list with scrolling
-  const all = entry.items.map((it, idx) => ({ it, idx })).reverse();
-  mini.innerHTML = all.map(({ it, idx }) => {
+  const all = entry.items.slice().reverse();
+  mini.innerHTML = all.map(it => {
     const r = calcItem(it);
     const name = r?.ingName || (state.ingredients[it.ingKey]?.name || it.ingKey);
     const kcal = r ? round0(r.kcal) : "—";
-    return `
-      <div class="miniItem">
-        <span class="left">${escapeHtml(mealLabel(it.meal))}: ${escapeHtml(name)}</span>
-        <span class="miniRight">
-          <b>${kcal}</b>
-          <span class="miniActions">
-            <button class="btn secondary miniActionBtn" data-mini-edit="${idx}">Edit</button>
-            <button class="btn danger miniActionBtn" data-mini-del="${idx}">Delete</button>
-          </span>
-        </span>
-      </div>
-    `;
+    return `<div class="miniItem"><span class="left">${escapeHtml(mealLabel(it.meal))}: ${escapeHtml(name)}</span><b>${kcal}</b></div>`;
   }).join("");
-
-  mini.querySelectorAll("button[data-mini-edit]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const idx = Number(btn.getAttribute("data-mini-edit"));
-      openEditItem(idx);
-    });
-  });
-  mini.querySelectorAll("button[data-mini-del]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const idx = Number(btn.getAttribute("data-mini-del"));
-      const current = ensureEntry(state.currentDate);
-      if(!current.items[idx]) return;
-      if(!confirm("Delete this item?")) return;
-      current.items.splice(idx, 1);
-      saveEntries();
-      renderCurrentDate();
-    });
-  });
 }
 
 function renderMacroGoals(){
