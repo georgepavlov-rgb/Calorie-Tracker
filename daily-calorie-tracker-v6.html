@@ -2457,9 +2457,15 @@ function round1(x){ return Math.round(x*10)/10; }
 function setStatusPill(consumed, goal){
   const pill = el("statusPill");
   const remaining = goal - consumed;
+  const diffPct = goal > 0 ? (Math.abs(remaining) / goal) : Infinity;
   if(goal <= 0){
     pill.className = "pill warn";
     pill.textContent = "no goal";
+    return;
+  }
+  if(diffPct <= 0.03){
+    pill.className = "pill good";
+    pill.textContent = "Goal met";
     return;
   }
   if(remaining >= 0){
