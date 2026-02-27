@@ -129,7 +129,14 @@
     .btn:active{ transform: translateY(0px); }
     .btn.secondary{ background: rgba(255,255,255,.05); box-shadow:none; }
     .btn.danger{ border-color: rgba(255,107,107,.35); background: rgba(255,107,107,.12); }
-    .btn:disabled{ opacity:.45; cursor:not-allowed; transform:none; }
+    .btn:disabled{
+      opacity:.45;
+      cursor:not-allowed;
+      transform:none;
+      box-shadow:none;
+      filter: grayscale(.25);
+      pointer-events:none;
+    }
 
     .grid{ display:grid; grid-template-columns: 1.1fr .9fr; gap:16px; align-items:start; }
     @media (max-width: 980px){ .grid{grid-template-columns:1fr} }
@@ -1870,6 +1877,91 @@ function setEditItemStatus(msg){
 function setQuickAddIngredientStatus(msg){
   el("quickAddIngredientStatus").textContent = msg;
 }
+function isActionEmailValid(raw){
+  const s = String(raw || "").trim();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+}
+function setBtnDisabled(id, disabled){
+  const btn = el(id);
+  if(btn) btn.disabled = !!disabled;
+}
+function getQuickAddCandidateKey(){
+  if(selectedKey && state.ingredients[selectedKey]) return selectedKey;
+  const typed = normalizeName(el("ingInput").value || "");
+  if(typed && state.ingredients[typed]) return typed;
+  return null;
+}
+function canAddQuickItem(){
+  if(!isSignedIn()) return false;
+  const ingKey = getQuickAddCandidateKey();
+  if(!ingKey) return false;
+  const ing = state.ingredients[ingKey];
+  const amount = safeNum(el("amtInput").value, NaN);
+  if(!Number.isFinite(amount) || amount <= 0) return false;
+  const unit = String(el("unitSelect").value || "");
+  if(!unit) return false;
+  return convertAmountToBase(amount, unit, ing) !== null;
+}
+function canAnalyzeInteractiveInput(){
+  if(!isSignedIn()) return false;
+  const file = el("foodPhotoInput").files && el("foodPhotoInput").files[0];
+  const mealText = String(el("aiMealTextInput").value || "").trim();
+  return !!file || !!mealText;
+}
+function hasCurrentDateData(){
+  if(!isSignedIn()) return false;
+  const date = state.currentDate || todayISO();
+  const entry = state.entries[date];
+  if(!entry) return false;
+  const hasItems = Array.isArray(entry.items) && entry.items.length > 0;
+  const hasGoal = Number.isFinite(Number(entry.goalOverrideKcal)) && Number(entry.goalOverrideKcal) > 0;
+  return hasItems || hasGoal;
+}
+function isIngredientFormReady(nameId, baseId, kcalId, pId, cId, fId){
+  const name = String(el(nameId).value || "").trim();
+  const base = String(el(baseId).value || "");
+  const kcal = safeNum(el(kcalId).value, NaN);
+  const p = safeNum(el(pId).value, NaN);
+  const c = safeNum(el(cId).value, NaN);
+  const f = safeNum(el(fId).value, NaN);
+  if(!name) return false;
+  if(base !== "g" && base !== "ml") return false;
+  if(!Number.isFinite(kcal) || kcal < 0) return false;
+  if(!Number.isFinite(p) || p < 0) return false;
+  if(!Number.isFinite(c) || c < 0) return false;
+  if(!Number.isFinite(f) || f < 0) return false;
+  return true;
+}
+function refreshActionButtons(){
+  const signedIn = isSignedIn();
+  const signInReady = isActionEmailValid(el("signInEmail").value) && String(el("signInPassword").value || "").length > 0;
+  const signUpReady = isActionEmailValid(el("signUpEmail").value)
+    && String(el("signUpPassword").value || "").length >= 6
+    && String(el("signUpPassword").value || "") === String(el("signUpPassword2").value || "");
+  const mobileSignUpReady = isActionEmailValid(el("mobileSignUpEmail").value)
+    && String(el("mobileSignUpPassword").value || "").length >= 6
+    && String(el("mobileSignUpPassword").value || "") === String(el("mobileSignUpPassword2").value || "");
+  const hasItemsToday = signedIn && Array.isArray(state.entries?.[state.currentDate]?.items) && state.entries[state.currentDate].items.length > 0;
+
+  setBtnDisabled("btnSignIn", !signInReady);
+  setBtnDisabled("btnSignUp", !signUpReady);
+  setBtnDisabled("btnMobileSignUp", !mobileSignUpReady);
+
+  setBtnDisabled("btnAdd", !canAddQuickItem());
+  setBtnDisabled("btnClearDay", !hasItemsToday);
+
+  setBtnDisabled("btnAnalyzeInteractiveAI", !canAnalyzeInteractiveInput());
+  setBtnDisabled("btnAddPhotoRow", !(signedIn && Object.keys(state.ingredients).length > 0));
+  setBtnDisabled("btnClearPhotoRows", !(signedIn && state.photoDrafts.length > 0));
+  setBtnDisabled("btnCommitPhotoRows", !(signedIn && state.photoDrafts.length > 0));
+
+  setBtnDisabled("btnSaveIngredient", !(signedIn && isIngredientFormReady("ingName", "ingBase", "ingKcal", "ingP", "ingC", "ingF")));
+  setBtnDisabled("btnQuickAddIngredientSubmit", !(signedIn && isIngredientFormReady("qaIngName", "qaIngBase", "qaIngKcal", "qaIngP", "qaIngC", "qaIngF")));
+
+  setBtnDisabled("btnReset", !hasCurrentDateData());
+  setBtnDisabled("btnAdminAddUser", !(signedIn && state.admin.isAdmin && isActionEmailValid(el("adminEmailInput").value)));
+  setBtnDisabled("btnSaveSupabaseConfig", !(String(el("supabaseUrlInput").value || "").trim() && String(el("supabaseAnonInput").value || "").trim()));
+}
 
 function showAuthChooser(){
   el("authChoicePane").classList.remove("hidden");
@@ -2108,6 +2200,7 @@ function resetQuickAddIngredientForm(){
   el("qaGSlice").value = "";
   el("qaGServing").value = "";
   setQuickAddIngredientStatus("Enter details, then click Add ingredient.");
+  refreshActionButtons();
 }
 function openQuickAddIngredient(){
   if(!isSignedIn()){ openAuth(); return; }
@@ -2245,6 +2338,7 @@ function refreshAuthUI(){
   el("userRoleInline").textContent = role;
   el("userRoleInline").className = `roleBadge ${role}`;
   refreshAdminUI();
+  refreshActionButtons();
 }
 
 function applyMobileMode(){
@@ -2641,6 +2735,7 @@ function setUnitOptionsForKey(key){
 
   if(ing?.base === "g" && units.includes("g")) el("unitSelect").value = "g";
   if(ing?.base === "ml" && units.includes("ml")) el("unitSelect").value = "ml";
+  refreshActionButtons();
 }
 
 function pickSuggestion(key){
@@ -2650,6 +2745,7 @@ function pickSuggestion(key){
   el("ingInput").value = ing.name; // show canonical full name
   setUnitOptionsForKey(key);
   closeAC();
+  refreshActionButtons();
 }
 
 function ensureSelectionOrExactMatch(){
@@ -2851,6 +2947,7 @@ function renderCurrentDate(){
     el("quickDbBodyMobile").innerHTML = `<tr><td colspan="6" class="smallMuted">Sign in to view ingredient data.</td></tr>`;
     el("defaultGoalLine").textContent = "";
     renderPhotoDrafts();
+    refreshActionButtons();
     return;
   }
   ensureEntry(state.currentDate);
@@ -2859,6 +2956,7 @@ function renderCurrentDate(){
   renderQuickDb();
   renderCalendar(); // keep history up-to-date if open
   renderPhotoDrafts();
+  refreshActionButtons();
 }
 
 function ingredientOptionsHtml(selectedKey){
@@ -2909,6 +3007,7 @@ function renderPhotoDrafts(){
   if(!state.photoDrafts.length){
     wrap.classList.add("hidden");
     body.innerHTML = "";
+    refreshActionButtons();
     return;
   }
 
@@ -2976,6 +3075,7 @@ function renderPhotoDrafts(){
     state.photoDrafts.splice(idx, 1);
     renderPhotoDrafts();
   }));
+  refreshActionButtons();
 }
 
 function appendRowsToEntry(rows, sourceLabel = "interactive AI"){
@@ -4159,6 +4259,23 @@ function bindEvents(){
       saveEditedItem();
     }
   });
+
+  // Real-time action button enable/disable states
+  [
+    "ingInput","amtInput","unitSelect","aiMealTextInput",
+    "signInEmail","signInPassword","signUpEmail","signUpPassword","signUpPassword2",
+    "mobileSignUpEmail","mobileSignUpPassword","mobileSignUpPassword2",
+    "ingName","ingBase","ingKcal","ingP","ingC","ingF",
+    "qaIngName","qaIngBase","qaIngKcal","qaIngP","qaIngC","qaIngF",
+    "adminEmailInput","supabaseUrlInput","supabaseAnonInput"
+  ].forEach((id) => {
+    const node = el(id);
+    if(!node) return;
+    node.addEventListener("input", refreshActionButtons);
+    node.addEventListener("change", refreshActionButtons);
+  });
+  el("foodPhotoInput").addEventListener("change", refreshActionButtons);
+  refreshActionButtons();
 
   // Reset selected day (history modal)
   el("btnReset").addEventListener("click", async () => {
