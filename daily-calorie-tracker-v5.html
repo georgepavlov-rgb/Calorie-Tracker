@@ -957,6 +957,21 @@
             </div>
           </div>
         </div>
+        <div class="card" style="box-shadow:none; margin-top:12px">
+          <div class="hd">
+            <div>
+              <h2>Admin data actions</h2>
+              <div class="hint">Delete all history for the currently signed-in user.</div>
+            </div>
+          </div>
+          <div class="bd">
+            <div class="footerNote" id="adminDeleteTargetLine">Target user: not signed in.</div>
+            <div class="row" style="margin-top:10px">
+              <button class="btn danger" id="btnAdminDeleteAllData" type="button">🗑️ Delete full user history (all days)</button>
+            </div>
+            <div class="footerNote">This deletes settings, ingredient DB, and all daily entries for that user.</div>
+          </div>
+        </div>
         <div class="footerNote" id="adminStatusLine" style="margin-top:12px">Set Supabase connection details to enable user access.</div>
       </div>
     </div>
@@ -1204,9 +1219,9 @@
           Legend: green = under goal, red = over goal, yellow = has data but no goal, gray = no data.
         </div>
         <div class="row" style="margin-top:12px">
-          <button class="btn danger" id="btnReset">🗑️ Reset all account data (all days)</button>
+          <button class="btn danger" id="btnReset">🗑️ Reset selected day only</button>
         </div>
-        <div class="footerNote">Deletes all settings, ingredient DB, and history for the currently signed-in user.</div>
+        <div class="footerNote">Deletes all logged information for the selected date only (does not affect other days).</div>
       </div>
     </div>
   </div>
@@ -1287,6 +1302,12 @@ function setAuthStatus(msg){
 }
 function setAdminStatus(msg){
   el("adminStatusLine").textContent = msg;
+}
+function refreshAdminDeleteTarget(){
+  const signedIn = isSignedIn();
+  const userLabel = signedIn ? state.auth.currentEmail : "not signed in";
+  el("adminDeleteTargetLine").textContent = `Target user: ${userLabel}.`;
+  el("btnAdminDeleteAllData").disabled = !signedIn;
 }
 
 function showAuthChooser(){
@@ -1385,6 +1406,7 @@ function openAdmin(){
   el("modalAdmin").style.display = "flex";
   el("supabaseUrlInput").value = state.sb.url || localStorage.getItem(LS_SB_URL) || "";
   el("supabaseAnonInput").value = state.sb.anonKey || localStorage.getItem(LS_SB_ANON) || "";
+  refreshAdminDeleteTarget();
   setAdminStatus(isSupabaseConfigured() ? "Connection is configured on this device." : "Enter Supabase URL + anon key, then save.");
 }
 
@@ -1395,6 +1417,7 @@ function refreshAuthUI(){
   el("authGate").classList.toggle("hidden", signedIn);
   el("appGrid").classList.toggle("hidden", !signedIn);
   el("userBadge").textContent = signedIn ? state.auth.currentEmail : "Not signed in";
+  refreshAdminDeleteTarget();
 }
 
 function applyMobileMode(){
@@ -2660,6 +2683,27 @@ function bindEvents(){
     setAdminStatus("Supabase connection cleared from this device.");
     setAuthStatus("Supabase not configured. Ask admin to set connection.");
   });
+  el("btnAdminDeleteAllData").addEventListener("click", async () => {
+    if(!isSignedIn()){
+      setAdminStatus("Sign in first to select a user for full-history deletion.");
+      return;
+    }
+    const userLabel = state.auth.currentEmail || "current user";
+    const ok = confirm(`Are you sure you want to delete ${userLabel} information across all days? This cannot be undone.`);
+    if(!ok) return;
+    if(!isSupabaseConfigured()){
+      setAdminStatus("Supabase is not configured. Set connection first.");
+      return;
+    }
+    const { error } = await state.sb.client.from(DATA_TABLE).delete().eq("user_id", state.auth.currentUserId);
+    if(error){
+      setAdminStatus(`Failed deleting full user history: ${error.message}`);
+      return;
+    }
+    await loadAll();
+    initUI();
+    setAdminStatus(`Deleted full history for ${userLabel}.`);
+  });
 
   // Auth + session
   el("btnAuth").addEventListener("click", openAuth);
@@ -3064,21 +3108,28 @@ function bindEvents(){
     e.target.value = "";
   });
 
-  // Reset
+  // Reset selected day (history modal)
   el("btnReset").addEventListener("click", async () => {
     if(!isSignedIn()){ openAuth(); return; }
-    if(confirm("Delete ALL account data for the current signed-in user across ALL days (settings + ingredients + entries)? This cannot be undone.")){
-      if(isSupabaseConfigured()){
-        const { error } = await state.sb.client.from(DATA_TABLE).delete().eq("user_id", state.auth.currentUserId);
-        if(error){
-          alert("Failed to reset user data: " + error.message);
-          return;
-        }
-      }
-      await loadAll();
-      initUI();
-      alert("All account data was deleted for the current signed-in user.");
+    const date = state.currentDate || todayISO();
+    const hasData = !!state.entries[date] && (
+      (Array.isArray(state.entries[date].items) && state.entries[date].items.length > 0) ||
+      (Number.isFinite(Number(state.entries[date].goalOverrideKcal)) && Number(state.entries[date].goalOverrideKcal) > 0)
+    );
+    if(!hasData){
+      alert(`No data found for ${date}.`);
+      return;
     }
+    const ok = confirm(`Are you sure you want to delete all information for ${date} only?`);
+    if(!ok) return;
+
+    delete state.entries[date];
+    saveEntries();
+    ensureEntry(date);
+    renderCurrentDate();
+    renderCalendar();
+    renderSelectedDayDetails(date);
+    alert(`Deleted all information for ${date}.`);
   });
 }
 
