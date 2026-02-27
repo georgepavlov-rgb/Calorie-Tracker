@@ -614,7 +614,6 @@
         <button class="btn secondary" id="btnIngredients">🧾 Ingredient database</button>
         <button class="btn secondary" id="btnExport">⬇️ Export my data</button>
         <button class="btn secondary" id="btnImport">⬆️ Import my data</button>
-        <button class="btn danger" id="btnReset">🗑️ Reset</button>
         <input type="file" id="importFile" accept="application/json" style="display:none" />
       </div>
     </div>
@@ -1204,6 +1203,10 @@
         <div class="footerNote">
           Legend: green = under goal, red = over goal, yellow = has data but no goal, gray = no data.
         </div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn danger" id="btnReset">🗑️ Reset all account data (all days)</button>
+        </div>
+        <div class="footerNote">Deletes all settings, ingredient DB, and history for the currently signed-in user.</div>
       </div>
     </div>
   </div>
@@ -3064,7 +3067,7 @@ function bindEvents(){
   // Reset
   el("btnReset").addEventListener("click", async () => {
     if(!isSignedIn()){ openAuth(); return; }
-    if(confirm("Reset all data for this signed-in user (settings + ingredients + entries)? This cannot be undone.")){
+    if(confirm("Delete ALL account data for the current signed-in user across ALL days (settings + ingredients + entries)? This cannot be undone.")){
       if(isSupabaseConfigured()){
         const { error } = await state.sb.client.from(DATA_TABLE).delete().eq("user_id", state.auth.currentUserId);
         if(error){
@@ -3074,7 +3077,7 @@ function bindEvents(){
       }
       await loadAll();
       initUI();
-      alert("Current user data reset.");
+      alert("All account data was deleted for the current signed-in user.");
     }
   });
 }
