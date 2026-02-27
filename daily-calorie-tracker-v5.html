@@ -75,6 +75,31 @@
       white-space:nowrap;
       max-width: 220px;
     }
+    .roleBadge{
+      padding:3px 8px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.16);
+      font-size:11px;
+      font-weight:900;
+      letter-spacing:.02em;
+      white-space:nowrap;
+    }
+    .roleBadge.admin{
+      border-color: rgba(61,220,151,.35);
+      color: rgba(61,220,151,.95);
+      background: rgba(61,220,151,.10);
+    }
+    .roleBadge.free{
+      border-color: rgba(255,255,255,.22);
+      color: var(--muted);
+      background: rgba(255,255,255,.06);
+    }
+    .roleBadge.guest{
+      border-color: rgba(255,204,102,.35);
+      color: rgba(255,204,102,.95);
+      background: rgba(255,204,102,.10);
+    }
     .hidden{ display:none !important; }
     .btn{
       border:1px solid var(--stroke);
@@ -644,6 +669,7 @@
       </div>
       <div class="actions">
         <div class="authUser"><span>User:</span> <b id="userBadge">Not signed in</b></div>
+        <span id="userRoleBadge" class="roleBadge guest">guest</span>
         <button class="btn secondary hidden" id="btnAdminAccess">⚙️ Admin access</button>
         <button class="btn secondary" id="btnAuth">🔐 Sign in / Sign up</button>
         <button class="btn secondary hidden" id="btnSignOut">🚪 Sign out</button>
@@ -1862,11 +1888,14 @@ function deleteEditedItem(){
 
 function refreshAuthUI(){
   const signedIn = isSignedIn();
+  const role = signedIn ? (state.admin.isAdmin ? "admin" : "free") : "guest";
   el("btnAuth").classList.toggle("hidden", signedIn);
   el("btnSignOut").classList.toggle("hidden", !signedIn);
   el("authGate").classList.toggle("hidden", signedIn);
   el("appGrid").classList.toggle("hidden", !signedIn);
   el("userBadge").textContent = signedIn ? state.auth.currentEmail : "Not signed in";
+  el("userRoleBadge").textContent = role;
+  el("userRoleBadge").className = `roleBadge ${role}`;
   refreshAdminUI();
 }
 
