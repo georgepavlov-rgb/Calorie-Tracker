@@ -89,6 +89,9 @@
       font-size:13px;
       display:inline-flex; align-items:center; gap:8px;
       user-select:none;
+      white-space: normal;
+      line-height: 1.2;
+      text-align: center;
     }
     .btn:hover{ transform: translateY(-1px); border-color: rgba(255,255,255,.22); }
     .btn:active{ transform: translateY(0px); }
@@ -241,6 +244,8 @@
     }
     .quickAddForm > *{ min-width:0; }
     .quickAddForm .field{ min-width:0; }
+    .quickAddForm input,
+    .quickAddForm select{ max-width:100%; }
     .quickAddForm .btn{ min-width: 0; width:100%; justify-content:center; }
     .quickAddForm .btn.addPrimary{
       min-height: 42px;
@@ -372,6 +377,9 @@
     .consumedTableWrap{
       max-height: 360px;
     }
+    .consumedTableWrap table{
+      min-width: 920px;
+    }
 
     .metric.over{
       border-color: rgba(255,107,107,.26);
@@ -394,6 +402,25 @@
     .macroLine .r{
       text-align:right;
       font-variant-numeric: tabular-nums;
+    }
+    .itemActions{
+      display:flex;
+      justify-content:flex-end;
+      gap:6px;
+      flex-wrap:wrap;
+    }
+    .itemActions .btn{
+      padding:7px 10px;
+      font-size:12px;
+      white-space:nowrap;
+    }
+    .itemEditGrid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+    }
+    @media (max-width:640px){
+      .itemEditGrid{ grid-template-columns:1fr; }
     }
 
     .macroGoalBox{
@@ -784,9 +811,9 @@
           <div class="row" style="justify-content:space-between">
             <div>
               <label style="display:block">Consumed items</label>
-              <div class="smallMuted">Today’s list. Remove items if needed.</div>
+              <div class="smallMuted">Today’s list. Edit or delete items one by one if needed.</div>
             </div>
-            <button class="btn secondary" id="btnClearDay">🧹 Clear day items</button>
+            <button class="btn secondary" id="btnClearDay">🧹 Clear all items (day)</button>
           </div>
 
           <div class="tableWrap consumedTableWrap" style="margin-top:12px">
@@ -1231,6 +1258,58 @@
     </div>
   </div>
 
+  <!-- EDIT ITEM MODAL -->
+  <div class="modalOverlay" id="modalEditItem">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Edit item">
+      <div class="modalTop">
+        <h3>Edit consumed item</h3>
+        <div class="row">
+          <button class="btn secondary" id="btnCloseEditItem">✕ Close</button>
+        </div>
+      </div>
+      <div class="modalBody">
+        <div class="card" style="box-shadow:none">
+          <div class="hd">
+            <div>
+              <h2>Update item details</h2>
+              <div class="hint">Change meal, ingredient, amount, and unit.</div>
+            </div>
+          </div>
+          <div class="bd">
+            <div class="itemEditGrid">
+              <div class="field">
+                <label for="editItemMeal">Meal</label>
+                <select id="editItemMeal">
+                  <option value="breakfast">Breakfast</option>
+                  <option value="lunch">Lunch</option>
+                  <option value="dinner">Dinner</option>
+                  <option value="snack">Snack</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="editItemIngredient">Ingredient</label>
+                <select id="editItemIngredient"></select>
+              </div>
+              <div class="field">
+                <label for="editItemAmount">Amount</label>
+                <input id="editItemAmount" type="number" min="0" step="0.1" placeholder="e.g., 180" />
+              </div>
+              <div class="field">
+                <label for="editItemUnit">Unit</label>
+                <select id="editItemUnit"></select>
+              </div>
+            </div>
+            <div class="row" style="margin-top:12px">
+              <button class="btn" id="btnSaveEditItem" type="button">💾 Save item</button>
+              <button class="btn danger" id="btnDeleteEditItem" type="button">🗑️ Delete item</button>
+            </div>
+            <div class="footerNote" id="editItemStatusLine">Select values and save.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* -----------------------------------------
@@ -1260,6 +1339,10 @@ const state = {
   calYear: 0,
   calMonth: 0,
   photoDrafts: [],
+  editItem: {
+    date: "",
+    index: -1
+  },
   auth: {
     currentUserId: null,
     currentEmail: ""
@@ -1313,6 +1396,9 @@ function refreshAdminDeleteTarget(){
   const userLabel = signedIn ? state.auth.currentEmail : "not signed in";
   el("adminDeleteTargetLine").textContent = `Target user: ${userLabel}.`;
   el("btnAdminDeleteAllData").disabled = !signedIn;
+}
+function setEditItemStatus(msg){
+  el("editItemStatusLine").textContent = msg;
 }
 
 function showAuthChooser(){
@@ -1413,6 +1499,109 @@ function openAdmin(){
   el("supabaseAnonInput").value = state.sb.anonKey || localStorage.getItem(LS_SB_ANON) || "";
   refreshAdminDeleteTarget();
   setAdminStatus(isSupabaseConfigured() ? "Connection is configured on this device." : "Enter Supabase URL + anon key, then save.");
+}
+function closeEditItem(){
+  el("modalEditItem").style.display = "none";
+  state.editItem.date = "";
+  state.editItem.index = -1;
+}
+function getEditingItemRef(){
+  if(!state.editItem.date || state.editItem.index < 0) return null;
+  const entry = ensureEntry(state.editItem.date);
+  if(!Array.isArray(entry.items) || state.editItem.index >= entry.items.length) return null;
+  return { entry, item: entry.items[state.editItem.index] };
+}
+function setEditItemUnitOptions(ingKey, selectedUnit = ""){
+  const ing = state.ingredients[ingKey];
+  const units = allowedUnitsForIngredient(ing);
+  el("editItemUnit").innerHTML = units.map((u) => {
+    let disabled = false;
+    let label = u;
+    if(ing?.base === "g" && (u === "piece" || u === "slice" || u === "serving")){
+      if(u === "piece" && !ing.gramsPerPiece) disabled = true;
+      if(u === "slice" && !ing.gramsPerSlice) disabled = true;
+      if(u === "serving" && !ing.gramsPerServing) disabled = true;
+      if(disabled) label = `${u} (set in DB)`;
+    }
+    return `<option value="${escapeAttr(u)}" ${disabled ? "disabled" : ""}>${escapeHtml(label)}</option>`;
+  }).join("");
+
+  const candidate = Array.from(el("editItemUnit").options).find((o) => o.value === selectedUnit && !o.disabled);
+  if(candidate){
+    el("editItemUnit").value = selectedUnit;
+    return;
+  }
+  const firstEnabled = Array.from(el("editItemUnit").options).find((o) => !o.disabled);
+  if(firstEnabled) el("editItemUnit").value = firstEnabled.value;
+}
+function openEditItem(index){
+  if(!isSignedIn()) return;
+  const entry = ensureEntry(state.currentDate);
+  const item = entry.items[index];
+  if(!item) return;
+
+  state.editItem.date = state.currentDate;
+  state.editItem.index = index;
+
+  el("editItemMeal").value = item.meal || "snack";
+  el("editItemIngredient").innerHTML = ingredientOptionsHtml(item.ingKey);
+  el("editItemAmount").value = safeNum(item.amount, 0) || "";
+  setEditItemUnitOptions(item.ingKey, item.unit || "");
+  setEditItemStatus(`Editing item ${index + 1} on ${state.currentDate}.`);
+
+  el("modalEditItem").style.display = "flex";
+}
+function saveEditedItem(){
+  const ref = getEditingItemRef();
+  if(!ref){
+    setEditItemStatus("Item not found anymore.");
+    return;
+  }
+  const ingKey = String(el("editItemIngredient").value || "");
+  const ing = state.ingredients[ingKey];
+  if(!ing){
+    setEditItemStatus("Select a valid ingredient.");
+    return;
+  }
+  const amount = safeNum(el("editItemAmount").value, NaN);
+  if(!Number.isFinite(amount) || amount <= 0){
+    setEditItemStatus("Enter a valid amount above 0.");
+    return;
+  }
+  const unit = String(el("editItemUnit").value || "");
+  if(convertAmountToBase(amount, unit, ing) === null){
+    setEditItemStatus("Selected unit is not valid for this ingredient.");
+    return;
+  }
+
+  ref.entry.items[state.editItem.index] = {
+    ...ref.item,
+    meal: String(el("editItemMeal").value || "snack"),
+    ingKey,
+    amount,
+    unit,
+    editedAt: new Date().toISOString()
+  };
+  const editedDate = state.editItem.date;
+  saveEntries();
+  closeEditItem();
+  renderCurrentDate();
+  renderSelectedDayDetails(editedDate);
+}
+function deleteEditedItem(){
+  const ref = getEditingItemRef();
+  if(!ref){
+    setEditItemStatus("Item not found anymore.");
+    return;
+  }
+  const ok = confirm("Delete this item?");
+  if(!ok) return;
+  ref.entry.items.splice(state.editItem.index, 1);
+  const editedDate = state.editItem.date;
+  saveEntries();
+  closeEditItem();
+  renderCurrentDate();
+  renderSelectedDayDetails(editedDate);
 }
 
 function refreshAuthUI(){
@@ -1945,15 +2134,28 @@ function renderConsumedTable(){
         <td class="tdRight">${r ? round0(r.p) : "—"}</td>
         <td class="tdRight">${r ? round0(r.c) : "—"}</td>
         <td class="tdRight">${r ? round0(r.f) : "—"}</td>
-        <td class="tdRight"><button class="btn secondary" style="padding:7px 10px" data-del="${idx}">Remove</button></td>
+        <td class="tdRight">
+          <div class="itemActions">
+            <button class="btn secondary" data-edit="${idx}">Edit item</button>
+            <button class="btn danger" data-del="${idx}">Delete item</button>
+          </div>
+        </td>
       </tr>
     `;
   }).join("");
 
+  body.querySelectorAll("button[data-edit]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const idx = Number(btn.getAttribute("data-edit"));
+      openEditItem(idx);
+    });
+  });
   body.querySelectorAll("button[data-del]").forEach(btn => {
     btn.addEventListener("click", () => {
       const idx = Number(btn.getAttribute("data-del"));
       const entry = ensureEntry(state.currentDate);
+      if(!entry.items[idx]) return;
+      if(!confirm("Delete this item?")) return;
       entry.items.splice(idx, 1);
       saveEntries();
       renderCurrentDate();
@@ -2327,6 +2529,7 @@ async function signOut(){
   if(isSupabaseConfigured()){
     await state.sb.client.auth.signOut();
   }
+  closeEditItem();
   state.auth.currentUserId = null;
   state.auth.currentEmail = "";
   state.settings = { defaultGoalKcal: 2000, macroRatios: { ...DEFAULT_MACRO_RATIOS }, mobileMode: false, openaiApiKey: "" };
@@ -2339,6 +2542,7 @@ async function signOut(){
 }
 
 async function afterAuthChange(){
+  closeEditItem();
   await loadAll();
   state.currentDate = todayISO();
   el("datePicker").value = state.currentDate;
@@ -2843,7 +3047,7 @@ function bindEvents(){
     if(!isSignedIn()){ openAuth(); return; }
     const entry = ensureEntry(state.currentDate);
     if(!entry.items.length) return;
-    if(confirm("Clear all items for this day?")){
+    if(confirm("Delete ALL items for this day at once?")){
       entry.items = [];
       saveEntries();
       renderCurrentDate();
@@ -3091,6 +3295,22 @@ function bindEvents(){
     state.calYear = d.getFullYear();
     state.calMonth = d.getMonth();
     renderCalendar();
+  });
+
+  // Edit item modal
+  el("btnCloseEditItem").addEventListener("click", closeEditItem);
+  el("modalEditItem").addEventListener("click", (e) => { if(e.target === el("modalEditItem")) closeEditItem(); });
+  el("editItemIngredient").addEventListener("change", () => {
+    const ingKey = String(el("editItemIngredient").value || "");
+    setEditItemUnitOptions(ingKey, "");
+  });
+  el("btnSaveEditItem").addEventListener("click", saveEditedItem);
+  el("btnDeleteEditItem").addEventListener("click", deleteEditedItem);
+  el("editItemAmount").addEventListener("keydown", (e) => {
+    if(e.key === "Enter"){
+      e.preventDefault();
+      saveEditedItem();
+    }
   });
 
   // Export/Import
