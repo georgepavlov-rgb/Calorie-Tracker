@@ -569,6 +569,7 @@
     .calCell .dot.warn{ background: rgba(255,204,102,.85); border-color: rgba(255,204,102,.45); }
 
     .footerNote{ margin-top:10px; color:var(--muted2); font-size:12px; line-height:1.45; }
+    .mobileOnly{ display:none !important; }
 
     .authGate{
       margin-bottom:16px;
@@ -620,6 +621,12 @@
     body.mobile-mode .summary{
       grid-template-columns:1fr;
     }
+    body.mobile-mode .mobileOnly{
+      display:inline-flex !important;
+    }
+    body.mobile-mode .quickSearchPanel{
+      display:none;
+    }
     body.mobile-mode table{
       min-width: 680px;
     }
@@ -637,9 +644,10 @@
       </div>
       <div class="actions">
         <div class="authUser"><span>User:</span> <b id="userBadge">Not signed in</b></div>
-        <button class="btn secondary" id="btnAdminAccess">⚙️ Admin access</button>
+        <button class="btn secondary hidden" id="btnAdminAccess">⚙️ Admin access</button>
         <button class="btn secondary" id="btnAuth">🔐 Sign in / Sign up</button>
         <button class="btn secondary hidden" id="btnSignOut">🚪 Sign out</button>
+        <button class="btn secondary mobileOnly" id="btnQuickSearch">🔎 Quick search</button>
         <button class="btn secondary" id="btnMobileMode">📱 Mobile view</button>
         <button class="btn secondary" id="btnGoals">🎯 Goals</button>
         <button class="btn secondary" id="btnHistory">🗓️ Calendar history</button>
@@ -841,7 +849,7 @@
       </section>
 
       <!-- Side -->
-      <aside class="card">
+      <aside class="card quickSearchPanel">
         <div class="hd">
           <div>
             <h2>Quick search</h2>
@@ -879,6 +887,53 @@
           </div>
         </div>
       </aside>
+    </div>
+  </div>
+
+  <!-- QUICK SEARCH (MOBILE) MODAL -->
+  <div class="modalOverlay" id="modalQuickSearch">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Quick Search">
+      <div class="modalTop">
+        <h3>Quick search</h3>
+        <div class="row">
+          <button class="btn secondary" id="btnCloseQuickSearch">✕ Close</button>
+        </div>
+      </div>
+      <div class="modalBody">
+        <div class="card" style="box-shadow:none">
+          <div class="hd">
+            <div>
+              <h2>Ingredient search</h2>
+              <div class="hint">Search your ingredient DB (calories + macros per 100g / 100ml).</div>
+            </div>
+          </div>
+          <div class="bd">
+            <div class="field">
+              <label for="quickSearchMobile">Ingredient search</label>
+              <input id="quickSearchMobile" type="text" placeholder="Type to search…" />
+              <div class="helper">Edit ingredients in the database screen.</div>
+            </div>
+            <div class="tableWrap" style="margin-top:12px">
+              <table style="min-width: 640px">
+                <thead>
+                  <tr>
+                    <th>Ingredient</th>
+                    <th class="tdRight">kcal/100</th>
+                    <th class="tdRight">P</th>
+                    <th class="tdRight">C</th>
+                    <th class="tdRight">F</th>
+                    <th class="tdRight">Base</th>
+                  </tr>
+                </thead>
+                <tbody id="quickDbBodyMobile"></tbody>
+              </table>
+            </div>
+            <div class="footerNote">
+              Want a truly large list? Import a bigger JSON dataset (same schema) via Import.
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -971,7 +1026,7 @@
           <div class="hd">
             <div>
               <h2>Supabase connection</h2>
-              <div class="hint">Configure project URL + anon key for this device. User sign in/up is kept separate.</div>
+              <div class="hint">System-level connection settings. Regular users do not need to enter Supabase information.</div>
             </div>
           </div>
           <div class="bd">
@@ -987,6 +1042,35 @@
               <button class="btn" id="btnSaveSupabaseConfig" type="button">Save connection</button>
               <button class="btn secondary" id="btnClearSupabaseConfig" type="button">Clear connection</button>
             </div>
+          </div>
+        </div>
+        <div class="card" style="box-shadow:none; margin-top:12px">
+          <div class="hd">
+            <div>
+              <h2>Admin users</h2>
+              <div class="hint">Admin access is restricted to georgepavlov@live.com. This list is stored in Supabase for backoffice management.</div>
+            </div>
+          </div>
+          <div class="bd">
+            <div class="row">
+              <div class="field" style="min-width:260px">
+                <label for="adminEmailInput">Add admin user (email)</label>
+                <input id="adminEmailInput" type="text" placeholder="admin@email.com" />
+              </div>
+              <button class="btn" id="btnAdminAddUser" type="button">+ Add admin</button>
+            </div>
+            <div class="tableWrap" style="margin-top:12px">
+              <table style="min-width:520px">
+                <thead>
+                  <tr>
+                    <th>Admin email</th>
+                    <th class="tdRight">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="adminUsersBody"></tbody>
+              </table>
+            </div>
+            <div class="footerNote" id="adminUsersStatusLine">Load admin list after sign in.</div>
           </div>
         </div>
         <div class="card" style="box-shadow:none; margin-top:12px">
@@ -1322,6 +1406,10 @@
 const LS_SB_URL = "dct_v5_supabase_url";
 const LS_SB_ANON = "dct_v5_supabase_anon";
 const DATA_TABLE = "dct_user_data";
+const ADMIN_TABLE = "dct_admin_users";
+const ADMIN_ROOT_EMAIL = "georgepavlov@live.com";
+const DEFAULT_SUPABASE_URL = "";
+const DEFAULT_SUPABASE_ANON = "";
 const MACRO_KEYS = ["p", "c", "f"];
 const MACRO_CAL_PER_G = { p: 4, c: 4, f: 9 };
 const MACRO_MIN_RATIO = 5;
@@ -1342,6 +1430,11 @@ const state = {
   editItem: {
     date: "",
     index: -1
+  },
+  admin: {
+    isAdmin: false,
+    list: [],
+    lastError: ""
   },
   auth: {
     currentUserId: null,
@@ -1374,6 +1467,9 @@ function getEmailConfirmationRedirectUrl(){
 function normalizeName(s){
   return (s || "").trim().toLowerCase().replace(/\s+/g, " ");
 }
+function normalizeEmail(s){
+  return String(s || "").trim().toLowerCase();
+}
 function safeNum(x, def=0){
   const n = Number(x);
   return Number.isFinite(n) ? n : def;
@@ -1391,11 +1487,59 @@ function setAuthStatus(msg){
 function setAdminStatus(msg){
   el("adminStatusLine").textContent = msg;
 }
+function setAdminUsersStatus(msg){
+  el("adminUsersStatusLine").textContent = msg;
+}
 function refreshAdminDeleteTarget(){
   const signedIn = isSignedIn();
   const userLabel = signedIn ? state.auth.currentEmail : "not signed in";
   el("adminDeleteTargetLine").textContent = `Target user: ${userLabel}.`;
-  el("btnAdminDeleteAllData").disabled = !signedIn;
+  el("btnAdminDeleteAllData").disabled = !(signedIn && state.admin.isAdmin);
+}
+function renderAdminUsersTable(){
+  const body = el("adminUsersBody");
+  if(!body) return;
+  if(!isSignedIn()){
+    body.innerHTML = `<tr><td colspan="2" class="smallMuted">Sign in as admin to manage this list.</td></tr>`;
+    return;
+  }
+  if(!state.admin.isAdmin){
+    body.innerHTML = `<tr><td colspan="2" class="smallMuted">Admin access denied.</td></tr>`;
+    return;
+  }
+  if(state.admin.lastError){
+    body.innerHTML = `<tr><td colspan="2" class="smallMuted">Unable to load admin list: ${escapeHtml(state.admin.lastError)}</td></tr>`;
+    return;
+  }
+  if(!state.admin.list.length){
+    body.innerHTML = `<tr><td colspan="2" class="smallMuted">No admin users configured.</td></tr>`;
+    return;
+  }
+
+  body.innerHTML = state.admin.list.map((email) => `
+    <tr>
+      <td><b>${escapeHtml(email)}</b>${email === ADMIN_ROOT_EMAIL ? ` <span class="badge">primary</span>` : ""}</td>
+      <td class="tdRight">
+        ${email === ADMIN_ROOT_EMAIL
+          ? `<span class="badge">locked</span>`
+          : `<button class="btn danger" style="padding:7px 10px" data-remove-admin="${escapeAttr(email)}">Remove</button>`}
+      </td>
+    </tr>
+  `).join("");
+
+  body.querySelectorAll("button[data-remove-admin]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const email = normalizeEmail(btn.getAttribute("data-remove-admin"));
+      if(!email) return;
+      await removeAdminUser(email);
+    });
+  });
+}
+function refreshAdminUI(){
+  const canSee = (!isSupabaseConfigured()) || (isSignedIn() && state.admin.isAdmin);
+  el("btnAdminAccess").classList.toggle("hidden", !canSee);
+  refreshAdminDeleteTarget();
+  renderAdminUsersTable();
 }
 function setEditItemStatus(msg){
   el("editItemStatusLine").textContent = msg;
@@ -1445,14 +1589,21 @@ function configureSupabaseClient(url, anonKey, persist = true){
 }
 
 function loadSupabaseConfig(){
-  const url = localStorage.getItem(LS_SB_URL) || "";
-  const anon = localStorage.getItem(LS_SB_ANON) || "";
-  if(url && anon){
-    configureSupabaseClient(url, anon, false);
-  } else {
-    el("supabaseUrlInput").value = url;
-    el("supabaseAnonInput").value = anon;
+  const storedUrl = localStorage.getItem(LS_SB_URL) || "";
+  const storedAnon = localStorage.getItem(LS_SB_ANON) || "";
+  const defaultUrl = String(DEFAULT_SUPABASE_URL || "").trim();
+  const defaultAnon = String(DEFAULT_SUPABASE_ANON || "").trim();
+
+  if(storedUrl && storedAnon){
+    configureSupabaseClient(storedUrl, storedAnon, false);
+    return;
   }
+  if(defaultUrl && defaultAnon){
+    configureSupabaseClient(defaultUrl, defaultAnon, false);
+    return;
+  }
+  el("supabaseUrlInput").value = storedUrl;
+  el("supabaseAnonInput").value = storedAnon;
 }
 
 function isSupabaseConfigured(){
@@ -1485,6 +1636,91 @@ async function saveUserDataRemote(){
     console.error("Failed saving user data:", error.message);
   }
 }
+async function refreshAdminAccess(){
+  state.admin.isAdmin = false;
+  state.admin.list = [];
+  state.admin.lastError = "";
+
+  if(!isSignedIn() || !isSupabaseConfigured()){
+    setAdminUsersStatus("Sign in as admin to manage admin users.");
+    refreshAdminUI();
+    return;
+  }
+
+  const current = normalizeEmail(state.auth.currentEmail);
+  const root = current === ADMIN_ROOT_EMAIL;
+
+  const { data, error } = await state.sb.client
+    .from(ADMIN_TABLE)
+    .select("email")
+    .order("email", { ascending: true });
+
+  if(error){
+    state.admin.lastError = error.message;
+    state.admin.isAdmin = root;
+    setAdminUsersStatus(`Admin list unavailable: ${error.message}`);
+    refreshAdminUI();
+    return;
+  }
+
+  const list = Array.from(new Set((data || []).map((r) => normalizeEmail(r.email)).filter(Boolean))).sort();
+  if(root && !list.includes(ADMIN_ROOT_EMAIL)){
+    const { error: insertErr } = await state.sb.client.from(ADMIN_TABLE).insert({ email: ADMIN_ROOT_EMAIL });
+    if(!insertErr){
+      list.push(ADMIN_ROOT_EMAIL);
+      list.sort();
+    }
+  }
+
+  state.admin.list = list;
+  state.admin.isAdmin = root;
+  setAdminUsersStatus(`Loaded ${state.admin.list.length} admin user(s).`);
+  refreshAdminUI();
+}
+async function addAdminUser(){
+  if(!isSignedIn() || !state.admin.isAdmin){
+    setAdminUsersStatus("Only admin users can manage admin list.");
+    return;
+  }
+  if(!isSupabaseConfigured()){
+    setAdminUsersStatus("Supabase is not configured.");
+    return;
+  }
+  const email = normalizeEmail(el("adminEmailInput").value);
+  if(!email || !email.includes("@")){
+    setAdminUsersStatus("Enter a valid email.");
+    return;
+  }
+  const { error } = await state.sb.client.from(ADMIN_TABLE).insert({ email });
+  if(error){
+    setAdminUsersStatus(`Failed adding admin: ${error.message}`);
+    return;
+  }
+  el("adminEmailInput").value = "";
+  await refreshAdminAccess();
+  setAdminUsersStatus(`Added admin: ${email}`);
+}
+async function removeAdminUser(email){
+  const normalized = normalizeEmail(email);
+  if(!normalized) return;
+  if(normalized === ADMIN_ROOT_EMAIL){
+    setAdminUsersStatus("Primary admin cannot be removed.");
+    return;
+  }
+  if(!isSignedIn() || !state.admin.isAdmin){
+    setAdminUsersStatus("Only admin users can manage admin list.");
+    return;
+  }
+  const ok = confirm(`Remove admin access for ${normalized}?`);
+  if(!ok) return;
+  const { error } = await state.sb.client.from(ADMIN_TABLE).delete().eq("email", normalized);
+  if(error){
+    setAdminUsersStatus(`Failed removing admin: ${error.message}`);
+    return;
+  }
+  await refreshAdminAccess();
+  setAdminUsersStatus(`Removed admin: ${normalized}`);
+}
 
 function closeAuth(){ el("modalAuth").style.display = "none"; }
 function openAuth(){
@@ -1494,11 +1730,31 @@ function openAuth(){
 }
 function closeAdmin(){ el("modalAdmin").style.display = "none"; }
 function openAdmin(){
+  const bootstrapMode = !isSupabaseConfigured();
+  if(!bootstrapMode && !isSignedIn()){
+    openAuth();
+    setAuthStatus("Sign in with an admin account to access admin settings.");
+    return;
+  }
+  if(!bootstrapMode && !state.admin.isAdmin){
+    alert("Admin access is restricted to georgepavlov@live.com.");
+    return;
+  }
   el("modalAdmin").style.display = "flex";
   el("supabaseUrlInput").value = state.sb.url || localStorage.getItem(LS_SB_URL) || "";
   el("supabaseAnonInput").value = state.sb.anonKey || localStorage.getItem(LS_SB_ANON) || "";
+  el("adminEmailInput").value = "";
+  setAdminUsersStatus(bootstrapMode ? "Bootstrap mode: configure Supabase connection first." : "Manage admin users below.");
+  renderAdminUsersTable();
   refreshAdminDeleteTarget();
-  setAdminStatus(isSupabaseConfigured() ? "Connection is configured on this device." : "Enter Supabase URL + anon key, then save.");
+  setAdminStatus(isSupabaseConfigured() ? "Connection is configured on this device." : "Enter Supabase URL + anon key, then save (bootstrap mode).");
+}
+function closeQuickSearch(){ el("modalQuickSearch").style.display = "none"; }
+function openQuickSearch(){
+  if(!isSignedIn()){ openAuth(); return; }
+  el("modalQuickSearch").style.display = "flex";
+  el("quickSearchMobile").value = state.quickSearch || "";
+  renderQuickDb();
 }
 function closeEditItem(){
   el("modalEditItem").style.display = "none";
@@ -1611,7 +1867,7 @@ function refreshAuthUI(){
   el("authGate").classList.toggle("hidden", signedIn);
   el("appGrid").classList.toggle("hidden", !signedIn);
   el("userBadge").textContent = signedIn ? state.auth.currentEmail : "Not signed in";
-  refreshAdminDeleteTarget();
+  refreshAdminUI();
 }
 
 function applyMobileMode(){
@@ -2165,8 +2421,13 @@ function renderConsumedTable(){
 
 function renderQuickDb(){
   const body = el("quickDbBody");
+  const bodyMobile = el("quickDbBodyMobile");
+  const writeBoth = (html) => {
+    if(body) body.innerHTML = html;
+    if(bodyMobile) bodyMobile.innerHTML = html;
+  };
   if(!isSignedIn()){
-    body.innerHTML = `<tr><td colspan="6" class="smallMuted">Sign in to view ingredient data.</td></tr>`;
+    writeBoth(`<tr><td colspan="6" class="smallMuted">Sign in to view ingredient data.</td></tr>`);
     return;
   }
   const q = normalizeName(state.quickSearch);
@@ -2175,7 +2436,7 @@ function renderQuickDb(){
     .sort((a,b)=> a.name.localeCompare(b.name))
     .slice(0, 12);
 
-  body.innerHTML = items.map(x => `
+  writeBoth(items.map(x => `
     <tr>
       <td><b>${escapeHtml(x.name)}</b><div class="smallMuted">${escapeHtml(normalizeName(x.name))}</div></td>
       <td class="tdRight">${round0(safeNum(x.per100?.kcal,0))}</td>
@@ -2184,7 +2445,7 @@ function renderQuickDb(){
       <td class="tdRight">${round1(safeNum(x.per100?.f,0))}</td>
       <td class="tdRight"><span class="badge">${x.base === "g" ? "100g" : "100ml"}</span></td>
     </tr>
-  `).join("") || `<tr><td colspan="6" class="smallMuted">No matches.</td></tr>`;
+  `).join("") || `<tr><td colspan="6" class="smallMuted">No matches.</td></tr>`);
 }
 
 function renderCurrentDate(){
@@ -2204,6 +2465,7 @@ function renderCurrentDate(){
     el("statusPill").textContent = "locked";
     el("consumedBody").innerHTML = `<tr><td colspan="8" class="smallMuted">Sign in to view your data.</td></tr>`;
     el("quickDbBody").innerHTML = `<tr><td colspan="6" class="smallMuted">Sign in to view ingredient data.</td></tr>`;
+    el("quickDbBodyMobile").innerHTML = `<tr><td colspan="6" class="smallMuted">Sign in to view ingredient data.</td></tr>`;
     el("defaultGoalLine").textContent = "";
     renderPhotoDrafts();
     return;
@@ -2432,6 +2694,11 @@ function clearError(){
    Auth
 ------------------------------------------*/
 function saveSupabaseConfigFromInputs(){
+  const bootstrapMode = !isSupabaseConfigured();
+  if(!bootstrapMode && (!isSignedIn() || !state.admin.isAdmin)){
+    setAdminStatus("Only admin users can change connection settings.");
+    return false;
+  }
   const url = String(el("supabaseUrlInput").value || "").trim();
   const anon = String(el("supabaseAnonInput").value || "").trim();
   if(!url || !anon){
@@ -2448,8 +2715,7 @@ function saveSupabaseConfigFromInputs(){
 
 async function signUp(){
   if(!isSupabaseConfigured()){
-    setAuthStatus("Admin setup required first. Open Admin access and save Supabase connection.");
-    openAdmin();
+    setAuthStatus("Service connection is unavailable. Please contact admin.");
     return;
   }
   const emailRaw = String(el("signUpEmail").value || "").trim().toLowerCase();
@@ -2500,8 +2766,7 @@ async function signUp(){
 
 async function signIn(){
   if(!isSupabaseConfigured()){
-    setAuthStatus("Admin setup required first. Open Admin access and save Supabase connection.");
-    openAdmin();
+    setAuthStatus("Service connection is unavailable. Please contact admin.");
     return;
   }
   const emailRaw = String(el("signInEmail").value || "").trim().toLowerCase();
@@ -2530,8 +2795,13 @@ async function signOut(){
     await state.sb.client.auth.signOut();
   }
   closeEditItem();
+  closeQuickSearch();
+  closeAdmin();
   state.auth.currentUserId = null;
   state.auth.currentEmail = "";
+  state.admin.isAdmin = false;
+  state.admin.list = [];
+  state.admin.lastError = "";
   state.settings = { defaultGoalKcal: 2000, macroRatios: { ...DEFAULT_MACRO_RATIOS }, mobileMode: false, openaiApiKey: "" };
   state.ingredients = {};
   state.entries = {};
@@ -2543,11 +2813,14 @@ async function signOut(){
 
 async function afterAuthChange(){
   closeEditItem();
+  closeQuickSearch();
   await loadAll();
+  await refreshAdminAccess();
   state.currentDate = todayISO();
   el("datePicker").value = state.currentDate;
   ensureEntry(state.currentDate);
   el("quickSearch").value = "";
+  el("quickSearchMobile").value = "";
   state.quickSearch = "";
   selectedKey = null;
   setUnitOptionsForKey(Object.keys(state.ingredients)[0] || null);
@@ -2858,8 +3131,12 @@ function bindEvents(){
     if(!saveSupabaseConfigFromInputs()) return;
     state.auth.currentUserId = null;
     state.auth.currentEmail = "";
+    state.admin.isAdmin = false;
+    state.admin.list = [];
+    state.admin.lastError = "";
     await restoreSupabaseSession();
     await loadAll();
+    await refreshAdminAccess();
     refreshAuthUI();
     initUI();
     if(isSignedIn()){
@@ -2869,6 +3146,10 @@ function bindEvents(){
     }
   });
   el("btnClearSupabaseConfig").addEventListener("click", async () => {
+    if(!state.admin.isAdmin){
+      setAdminStatus("Only admin users can clear connection settings.");
+      return;
+    }
     localStorage.removeItem(LS_SB_URL);
     localStorage.removeItem(LS_SB_ANON);
     state.sb.url = "";
@@ -2879,14 +3160,22 @@ function bindEvents(){
     el("supabaseUrlInput").value = "";
     el("supabaseAnonInput").value = "";
     await loadAll();
+    await refreshAdminAccess();
     refreshAuthUI();
     initUI();
     setAdminStatus("Supabase connection cleared from this device.");
     setAuthStatus("Supabase not configured. Ask admin to set connection.");
   });
+  el("btnAdminAddUser").addEventListener("click", async () => { await addAdminUser(); });
+  el("adminEmailInput").addEventListener("keydown", async (e) => {
+    if(e.key === "Enter"){
+      e.preventDefault();
+      await addAdminUser();
+    }
+  });
   el("btnAdminDeleteAllData").addEventListener("click", async () => {
-    if(!isSignedIn()){
-      setAdminStatus("Sign in first to select a user for full-history deletion.");
+    if(!isSignedIn() || !state.admin.isAdmin){
+      setAdminStatus("Only admin users can run this action.");
       return;
     }
     const userLabel = state.auth.currentEmail || "current user";
@@ -2920,6 +3209,11 @@ function bindEvents(){
   el("btnSignOut").addEventListener("click", async () => { await signOut(); });
   el("signInPassword").addEventListener("keydown", async (e) => { if(e.key === "Enter"){ e.preventDefault(); await signIn(); } });
   el("signUpPassword2").addEventListener("keydown", async (e) => { if(e.key === "Enter"){ e.preventDefault(); await signUp(); } });
+
+  // Mobile quick search modal
+  el("btnQuickSearch").addEventListener("click", openQuickSearch);
+  el("btnCloseQuickSearch").addEventListener("click", closeQuickSearch);
+  el("modalQuickSearch").addEventListener("click", (e) => { if(e.target === el("modalQuickSearch")) closeQuickSearch(); });
 
   // Mobile mode switch
   el("btnMobileMode").addEventListener("click", () => {
@@ -3058,6 +3352,13 @@ function bindEvents(){
   el("quickSearch").addEventListener("input", () => {
     if(!isSignedIn()) return;
     state.quickSearch = el("quickSearch").value;
+    el("quickSearchMobile").value = state.quickSearch;
+    renderQuickDb();
+  });
+  el("quickSearchMobile").addEventListener("input", () => {
+    if(!isSignedIn()) return;
+    state.quickSearch = el("quickSearchMobile").value;
+    el("quickSearch").value = state.quickSearch;
     renderQuickDb();
   });
 
@@ -3590,6 +3891,7 @@ async function init(){
     await restoreSupabaseSession();
   }
   await loadAll();
+  await refreshAdminAccess();
   refreshAuthUI();
   initUI();
 }
