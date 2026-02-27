@@ -73,7 +73,7 @@
       overflow:hidden;
       text-overflow:ellipsis;
       white-space:nowrap;
-      max-width: 220px;
+      max-width: 200px;
     }
     .roleBadge{
       padding:3px 8px;
@@ -748,8 +748,10 @@
         </div>
       </div>
       <div class="actions">
-        <div class="authUser"><span>User:</span> <b id="userBadge">Not signed in</b></div>
-        <span id="userRoleBadge" class="roleBadge guest">guest</span>
+        <div class="authUser">
+          <b id="userBadge">Not signed in</b>
+          <span id="userRoleInline" class="roleBadge guest">guest</span>
+        </div>
         <button class="btn secondary hidden" id="btnAdminAccess">⚙️ Admin access</button>
         <button class="btn secondary" id="btnAuth">🔐 Sign in / Sign up</button>
         <button class="btn secondary hidden" id="btnSignOut">🚪 Sign out</button>
@@ -2228,8 +2230,8 @@ function refreshAuthUI(){
   document.body.classList.toggle("signed-in", signedIn);
   document.body.classList.toggle("signed-out", !signedIn);
   el("userBadge").textContent = signedIn ? state.auth.currentEmail : "Not signed in";
-  el("userRoleBadge").textContent = role;
-  el("userRoleBadge").className = `roleBadge ${role}`;
+  el("userRoleInline").textContent = role;
+  el("userRoleInline").className = `roleBadge ${role}`;
   refreshAdminUI();
 }
 
