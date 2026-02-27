@@ -302,6 +302,17 @@
       color: var(--muted);
       min-height: 40px;
     }
+    .aiTextBar{
+      margin: 0 12px 12px;
+      padding: 12px;
+      border-radius: 12px;
+      border:1px solid rgba(255,255,255,.1);
+      background: rgba(0,0,0,.14);
+    }
+    .aiTextBar textarea{
+      min-height: 84px;
+      resize: vertical;
+    }
 
     @media (max-width: 1240px){
       .quickAddForm{ grid-template-columns: 1fr 1fr; }
@@ -875,8 +886,8 @@
           <div class="quickAdd" style="margin-top:10px">
             <div class="quickAddTop">
               <div>
-                <b>Photo add</b>
-                <div class="smallMuted">Upload a food photo, analyze it, edit recognized items, then add selected rows to consumption.</div>
+                <b>Interactive AI</b>
+                <div class="smallMuted">Upload a food photo or write what you ate. AI maps it to your ingredient database and inserts to consumed meals.</div>
               </div>
               <div class="smallMuted">Editable before save</div>
             </div>
@@ -898,9 +909,18 @@
                 <label for="aiKeyInput">OpenAI API key (optional save)</label>
                 <input id="aiKeyInput" type="password" placeholder="sk-..." autocomplete="off" />
               </div>
-              <button class="btn" id="btnAnalyzePhoto" type="button">🖼️ Analyze photo</button>
+              <button class="btn" id="btnAnalyzePhoto" type="button">🖼️ Analyze picture</button>
             </div>
-            <div class="photoStatus" id="photoStatus">No photo analyzed yet.</div>
+            <div class="aiTextBar">
+              <div class="field">
+                <label for="aiMealTextInput">What did you eat? (free text)</label>
+                <textarea id="aiMealTextInput" placeholder="Example: lunch - 250g chicken breast, 150g rice, 1 tbsp olive oil, 1 slice chocolate cake"></textarea>
+              </div>
+              <div class="row" style="margin-top:10px">
+                <button class="btn" id="btnAnalyzeMealText" type="button">✨ Analyze text and add to consumed</button>
+              </div>
+            </div>
+            <div class="photoStatus" id="photoStatus">No AI analysis yet.</div>
             <img id="photoPreview" class="photoPreview" alt="Food preview" />
 
             <div id="photoResultsWrap" class="hidden" style="margin-top:10px">
@@ -2938,6 +2958,67 @@ function renderPhotoDrafts(){
   }));
 }
 
+function commitPhotoDraftRows(sourceLabel = "interactive AI"){
+  if(!isSignedIn()){ openAuth(); return 0; }
+  if(!state.photoDrafts.length){
+    el("photoStatus").textContent = "No recognized rows to add.";
+    return 0;
+  }
+  const entry = ensureEntry(state.currentDate);
+  let added = 0;
+  for(const row of state.photoDrafts){
+    const ing = state.ingredients[row.ingKey];
+    if(!ing) continue;
+    if(convertAmountToBase(row.amount, row.unit, ing) === null) continue;
+    entry.items.push({
+      meal: row.meal,
+      ingKey: row.ingKey,
+      amount: row.amount,
+      unit: row.unit,
+      addedAt: new Date().toISOString()
+    });
+    added += 1;
+  }
+  saveEntries();
+  state.photoDrafts = [];
+  renderCurrentDate();
+  el("photoStatus").textContent = `Added ${added} item(s) from ${sourceLabel}.`;
+  return added;
+}
+
+function resolveAiIngredientKey(rawName){
+  const guessed = normalizeName(rawName || "");
+  if(!guessed) return null;
+  if(state.ingredients[guessed]) return guessed;
+  const byContains = Object.keys(state.ingredients).find(k =>
+    normalizeName(state.ingredients[k]?.name).includes(guessed)
+  );
+  if(byContains) return byContains;
+  const byReverseContains = Object.keys(state.ingredients).find(k =>
+    guessed.includes(normalizeName(state.ingredients[k]?.name))
+  );
+  return byReverseContains || null;
+}
+
+function mapAiItemsToRows(items){
+  const rows = [];
+  const defaultMeal = el("photoMealSelect").value;
+  for(const item of (Array.isArray(items) ? items : [])){
+    const ingKey = resolveAiIngredientKey(item.ingredient);
+    if(!ingKey) continue;
+    const ing = state.ingredients[ingKey];
+    const unit = String(item.unit || "").toLowerCase();
+    const validUnits = allowedUnitsForIngredient(ing);
+    rows.push({
+      meal: ["breakfast","lunch","dinner","snack"].includes(item.meal) ? item.meal : defaultMeal,
+      ingKey,
+      amount: clamp(safeNum(item.amount, ing.base === "ml" ? 250 : 150), 0.1, 5000),
+      unit: validUnits.includes(unit) ? unit : defaultUnitForIngredient(ing)
+    });
+  }
+  return rows;
+}
+
 function stripCodeFences(text){
   const t = String(text || "").trim();
   return t.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```$/i, "").trim();
@@ -2969,6 +3050,24 @@ function fallbackPhotoGuess(fileName){
     if(firstKey){
       const ing = state.ingredients[firstKey];
       hits.push({ meal: el("photoMealSelect").value, ingKey: firstKey, amount: ing.base === "ml" ? 250 : 150, unit: defaultUnitForIngredient(ing) });
+    }
+  }
+  return hits;
+}
+
+function fallbackTextGuess(mealText){
+  const words = normalizeName(mealText).split(/[^a-z0-9]+/).filter(w => w.length > 2);
+  const hits = [];
+  for(const [k, ing] of Object.entries(state.ingredients)){
+    const n = normalizeName(ing.name);
+    if(words.some(w => n.includes(w))){
+      hits.push({
+        meal: el("photoMealSelect").value,
+        ingKey: k,
+        amount: ing.base === "ml" ? 250 : 120,
+        unit: defaultUnitForIngredient(ing)
+      });
+      if(hits.length >= 6) break;
     }
   }
   return hits;
@@ -3012,6 +3111,49 @@ async function analyzePhotoWithOpenAI(dataUrl){
   if(!res.ok){
     return { ok:false, reason:`api_error_${res.status}` };
   }
+  const payload = await res.json();
+  const text = payload?.choices?.[0]?.message?.content || "";
+  const parsed = tryParseJsonPayload(text);
+  if(!parsed || !Array.isArray(parsed.items)) return { ok:false, reason:"parse_error" };
+  return { ok:true, items: parsed.items };
+}
+
+async function analyzeMealTextWithOpenAI(mealText){
+  const apiKey = String(el("aiKeyInput").value || "").trim() || state.settings.openaiApiKey;
+  if(!apiKey) return { ok:false, reason:"missing_key" };
+  const cleanText = String(mealText || "").trim();
+  if(!cleanText) return { ok:false, reason:"empty_text" };
+
+  const ingredients = Object.values(state.ingredients).map(x => x.name).sort((a,b)=> a.localeCompare(b));
+  const ingredientList = ingredients.join(", ");
+  const meal = el("photoMealSelect").value;
+  const prompt = [
+    "Convert this meal description into tracker rows.",
+    "Map rows only to ingredient names from this list:",
+    ingredientList,
+    `User text: ${cleanText}`,
+    "Return strict JSON only with this schema:",
+    '{"items":[{"ingredient":"exact name from list","amount":number,"unit":"g|ml|piece|slice|serving","meal":"breakfast|lunch|dinner|snack"}]}',
+    `Use "${meal}" as meal if unsure.`,
+    "Estimate missing amounts conservatively."
+  ].join("\n");
+
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      temperature: 0.1,
+      messages: [
+        { role:"system", content:"You map food text to a fixed ingredient list. Output valid JSON only." },
+        { role:"user", content: prompt }
+      ]
+    })
+  });
+  if(!res.ok) return { ok:false, reason:`api_error_${res.status}` };
   const payload = await res.json();
   const text = payload?.choices?.[0]?.message?.content || "";
   const parsed = tryParseJsonPayload(text);
@@ -3189,7 +3331,7 @@ async function afterAuthChange(){
   setUnitOptionsForKey(Object.keys(state.ingredients)[0] || null);
   el("aiKeyInput").value = state.settings.openaiApiKey || "";
   state.photoDrafts = [];
-  el("photoStatus").textContent = "No photo analyzed yet.";
+  el("photoStatus").textContent = "No AI analysis yet.";
   el("photoPreview").style.display = "none";
   el("photoPreview").src = "";
   refreshAuthUI();
@@ -3770,7 +3912,7 @@ function bindEvents(){
     renderQuickDb();
   });
 
-  // Photo add
+  // Interactive AI
   el("foodPhotoInput").addEventListener("change", () => {
     const file = el("foodPhotoInput").files && el("foodPhotoInput").files[0];
     if(!file){
@@ -3778,7 +3920,7 @@ function bindEvents(){
       el("photoPreview").style.display = "none";
       return;
     }
-    el("photoStatus").textContent = `Selected: ${file.name}. Click "Analyze photo" to detect food.`;
+    el("photoStatus").textContent = `Selected: ${file.name}. Click "Analyze picture" to detect food.`;
   });
   el("aiKeyInput").addEventListener("change", () => {
     state.settings.openaiApiKey = String(el("aiKeyInput").value || "").trim();
@@ -3809,23 +3951,7 @@ function bindEvents(){
       let rows = [];
       const ai = await analyzePhotoWithOpenAI(dataUrl);
       if(ai.ok){
-        for(const item of ai.items){
-          const guessedName = normalizeName(item.ingredient || "");
-          let ingKey = guessedName && state.ingredients[guessedName] ? guessedName : null;
-          if(!ingKey){
-            ingKey = Object.keys(state.ingredients).find(k => normalizeName(state.ingredients[k]?.name).includes(guessedName));
-          }
-          if(!ingKey) continue;
-          const ing = state.ingredients[ingKey];
-          const unit = String(item.unit || "").toLowerCase();
-          const validUnits = allowedUnitsForIngredient(ing);
-          rows.push({
-            meal: ["breakfast","lunch","dinner","snack"].includes(item.meal) ? item.meal : el("photoMealSelect").value,
-            ingKey,
-            amount: clamp(safeNum(item.amount, ing.base === "ml" ? 250 : 150), 0.1, 5000),
-            unit: validUnits.includes(unit) ? unit : defaultUnitForIngredient(ing)
-          });
-        }
+        rows = mapAiItemsToRows(ai.items);
       }
       if(!rows.length){
         rows = fallbackPhotoGuess(file.name);
@@ -3843,6 +3969,52 @@ function bindEvents(){
       rows.forEach(pushPhotoDraft);
       renderPhotoDrafts();
       el("photoStatus").textContent = `Photo analysis failed (${err?.message || err}). Added editable fallback rows.`;
+    }
+  });
+  el("btnAnalyzeMealText").addEventListener("click", async () => {
+    if(!isSignedIn()){ openAuth(); return; }
+    const mealText = String(el("aiMealTextInput").value || "").trim();
+    if(!mealText){
+      el("photoStatus").textContent = "Write what you ate first.";
+      el("aiMealTextInput").focus();
+      return;
+    }
+    state.settings.openaiApiKey = String(el("aiKeyInput").value || "").trim();
+    if(isSignedIn()) saveSettings();
+    el("photoStatus").textContent = "Analyzing text...";
+    try{
+      const ai = await analyzeMealTextWithOpenAI(mealText);
+      let rows = [];
+      if(ai.ok){
+        rows = mapAiItemsToRows(ai.items);
+      }
+      if(!rows.length){
+        rows = fallbackTextGuess(mealText);
+        state.photoDrafts = [];
+        rows.forEach(pushPhotoDraft);
+        renderPhotoDrafts();
+        el("photoStatus").textContent = "Could not confidently map text with AI. Added editable suggestions. Review and click 'Add recognized to consumed'.";
+        return;
+      }
+      state.photoDrafts = [];
+      rows.forEach(pushPhotoDraft);
+      renderPhotoDrafts();
+      const added = commitPhotoDraftRows("AI text");
+      if(added > 0){
+        el("aiMealTextInput").value = "";
+      }
+    } catch (err){
+      const rows = fallbackTextGuess(mealText);
+      state.photoDrafts = [];
+      rows.forEach(pushPhotoDraft);
+      renderPhotoDrafts();
+      el("photoStatus").textContent = `Text analysis failed (${err?.message || err}). Added editable suggestions.`;
+    }
+  });
+  el("aiMealTextInput").addEventListener("keydown", async (e) => {
+    if((e.metaKey || e.ctrlKey) && e.key === "Enter"){
+      e.preventDefault();
+      el("btnAnalyzeMealText").click();
     }
   });
   el("btnAddPhotoRow").addEventListener("click", () => {
@@ -3863,30 +4035,7 @@ function bindEvents(){
     el("photoStatus").textContent = "Recognized rows cleared.";
   });
   el("btnCommitPhotoRows").addEventListener("click", () => {
-    if(!isSignedIn()){ openAuth(); return; }
-    if(!state.photoDrafts.length){
-      el("photoStatus").textContent = "No recognized rows to add.";
-      return;
-    }
-    const entry = ensureEntry(state.currentDate);
-    let added = 0;
-    for(const row of state.photoDrafts){
-      const ing = state.ingredients[row.ingKey];
-      if(!ing) continue;
-      if(convertAmountToBase(row.amount, row.unit, ing) === null) continue;
-      entry.items.push({
-        meal: row.meal,
-        ingKey: row.ingKey,
-        amount: row.amount,
-        unit: row.unit,
-        addedAt: new Date().toISOString()
-      });
-      added += 1;
-    }
-    saveEntries();
-    state.photoDrafts = [];
-    renderCurrentDate();
-    el("photoStatus").textContent = `Added ${added} item(s) from photo recognition.`;
+    commitPhotoDraftRows("interactive AI");
   });
 
   // Goals modal
