@@ -1571,6 +1571,7 @@
             </div>
           </div>
           <div class="bd">
+            <div class="footerNote" id="editItemSelectedInfo">Selected item: —</div>
             <div class="itemEditGrid">
               <div class="field">
                 <label for="editItemMeal">Meal</label>
@@ -2108,6 +2109,7 @@ function openQuickAddIngredient(){
 }
 function closeEditItem(){
   el("modalEditItem").style.display = "none";
+  el("editItemSelectedInfo").textContent = "Selected item: —";
   state.editItem.date = "";
   state.editItem.index = -1;
 }
@@ -2153,6 +2155,18 @@ function openEditItem(index){
   el("editItemIngredient").innerHTML = ingredientOptionsHtml(item.ingKey);
   el("editItemAmount").value = safeNum(item.amount, 0) || "";
   setEditItemUnitOptions(item.ingKey, item.unit || "");
+  const calc = calcItem(item);
+  const ingName = state.ingredients[item.ingKey]?.name || item.ingKey;
+  const addedAtDate = new Date(item.addedAt || "");
+  const addedAtText = (item.addedAt && !Number.isNaN(addedAtDate.getTime())) ? addedAtDate.toLocaleString() : "n/a";
+  const editInfo = [
+    `Selected item`,
+    `${mealLabel(item.meal || "snack")} | ${ingName} | ${item.amount} ${item.unit}`,
+    `Calories ${calc ? round0(calc.kcal) : "—"} kcal`,
+    `Protein ${calc ? round0(calc.p) : "—"}g | Carbs ${calc ? round0(calc.c) : "—"}g | Fat ${calc ? round0(calc.f) : "—"}g`,
+    `Added ${addedAtText}`
+  ].join(" | ");
+  el("editItemSelectedInfo").textContent = editInfo;
   setEditItemStatus(`Editing item ${index + 1} on ${state.currentDate}.`);
 
   el("modalEditItem").style.display = "flex";
@@ -2753,7 +2767,7 @@ function renderConsumedTable(){
         <td class="tdRight">${r ? round0(r.f) : "—"}</td>
         <td class="tdRight">
           <div class="itemActions">
-            <button class="btn secondary" data-edit="${idx}">Edit item</button>
+            <button class="btn secondary" data-edit="${idx}">Edit consumed item</button>
             <button class="btn danger" data-del="${idx}">Delete item</button>
           </div>
         </td>
