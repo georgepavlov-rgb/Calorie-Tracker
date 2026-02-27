@@ -67,13 +67,20 @@
       background: rgba(255,255,255,.04);
       font-size:12px;
       font-weight:800;
-      max-width: 320px;
+      max-width: 460px;
     }
     .authUser b{
       overflow:hidden;
       text-overflow:ellipsis;
       white-space:nowrap;
       max-width: 200px;
+    }
+    .authSignOutBtn{
+      padding:6px 8px;
+      font-size:11px;
+      box-shadow:none;
+      border-radius:10px;
+      line-height:1;
     }
     .roleBadge{
       padding:3px 8px;
@@ -751,10 +758,10 @@
         <div class="authUser">
           <b id="userBadge">Not signed in</b>
           <span id="userRoleInline" class="roleBadge guest">guest</span>
+          <button class="btn secondary hidden authSignOutBtn" id="btnSignOut">🚪 Sign out</button>
         </div>
         <button class="btn secondary hidden" id="btnAdminAccess">⚙️ Admin access</button>
         <button class="btn secondary" id="btnAuth">🔐 Sign in / Sign up</button>
-        <button class="btn secondary hidden" id="btnSignOut">🚪 Sign out</button>
         <button class="btn secondary mobileOnly" id="btnQuickSearch">🔎 Quick search</button>
         <button class="btn secondary" id="btnMobileMode">📱 Mobile view</button>
         <button class="btn secondary" id="btnGoals">🎯 Goals</button>
