@@ -678,9 +678,6 @@
         <button class="btn secondary" id="btnGoals">🎯 Goals</button>
         <button class="btn secondary" id="btnHistory">🗓️ Calendar history</button>
         <button class="btn secondary" id="btnIngredients">🧾 Ingredient database</button>
-        <button class="btn secondary" id="btnExport">⬇️ Export my data</button>
-        <button class="btn secondary" id="btnImport">⬆️ Import my data</button>
-        <input type="file" id="importFile" accept="application/json" style="display:none" />
       </div>
     </div>
 
@@ -881,7 +878,7 @@
             <h2>Quick search</h2>
             <div class="hint">Search your ingredient DB (calories + macros per 100g / 100ml).</div>
           </div>
-          <div class="pill">localStorage</div>
+          <button class="btn secondary" id="btnQuickAddIngredient" type="button">+ Add ingredient to quick search</button>
         </div>
         <div class="bd">
           <div class="row">
@@ -909,7 +906,7 @@
           </div>
 
           <div class="footerNote">
-            Want a truly large list? Import a bigger JSON dataset (same schema) via Import.
+            Want a truly large list? Use Ingredient database or Add ingredient to quick search to keep expanding your DB.
           </div>
         </div>
       </aside>
@@ -939,6 +936,9 @@
               <input id="quickSearchMobile" type="text" placeholder="Type to search…" />
               <div class="helper">Edit ingredients in the database screen.</div>
             </div>
+            <div class="row" style="margin-top:10px">
+              <button class="btn secondary" id="btnQuickAddIngredientMobile" type="button">+ Add ingredient to quick search</button>
+            </div>
             <div class="tableWrap" style="margin-top:12px">
               <table style="min-width: 640px">
                 <thead>
@@ -955,8 +955,83 @@
               </table>
             </div>
             <div class="footerNote">
-              Want a truly large list? Import a bigger JSON dataset (same schema) via Import.
+              Want a truly large list? Use Ingredient database or Add ingredient to quick search to keep expanding your DB.
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUICK ADD INGREDIENT MODAL -->
+  <div class="modalOverlay" id="modalQuickAddIngredient">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Add ingredient to quick search">
+      <div class="modalTop">
+        <h3>Add ingredient to quick search</h3>
+        <div class="row">
+          <button class="btn secondary" id="btnCloseQuickAddIngredient">✕ Close</button>
+        </div>
+      </div>
+      <div class="modalBody">
+        <div class="card" style="box-shadow:none">
+          <div class="hd">
+            <div>
+              <h2>New ingredient</h2>
+              <div class="hint">Fill the fields and click Add ingredient to store it in your ingredient database.</div>
+            </div>
+          </div>
+          <div class="bd">
+            <div class="field">
+              <label for="qaIngName">Ingredient name</label>
+              <input id="qaIngName" type="text" placeholder="e.g., chicken breast, cooked" />
+            </div>
+            <div class="row" style="margin-top:10px">
+              <div class="field" style="max-width:220px">
+                <label for="qaIngBase">Base</label>
+                <select id="qaIngBase">
+                  <option value="g">per 100g</option>
+                  <option value="ml">per 100ml</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="qaIngKcal">kcal per 100</label>
+                <input id="qaIngKcal" type="number" min="0" step="0.1" placeholder="e.g., 165" />
+              </div>
+            </div>
+            <div class="row" style="margin-top:10px">
+              <div class="field">
+                <label for="qaIngP">Protein (g) per 100</label>
+                <input id="qaIngP" type="number" min="0" step="0.1" placeholder="e.g., 31" />
+              </div>
+              <div class="field">
+                <label for="qaIngC">Carbs (g) per 100</label>
+                <input id="qaIngC" type="number" min="0" step="0.1" placeholder="e.g., 0" />
+              </div>
+              <div class="field">
+                <label for="qaIngF">Fat (g) per 100</label>
+                <input id="qaIngF" type="number" min="0" step="0.1" placeholder="e.g., 3.6" />
+              </div>
+            </div>
+            <div class="divider"></div>
+            <div class="row">
+              <div class="field">
+                <label for="qaGPiece">grams per piece (optional)</label>
+                <input id="qaGPiece" type="number" min="0" step="0.1" placeholder="e.g., egg ~ 50" />
+              </div>
+              <div class="field">
+                <label for="qaGSlice">grams per slice (optional)</label>
+                <input id="qaGSlice" type="number" min="0" step="0.1" placeholder="e.g., bread slice ~ 30" />
+              </div>
+              <div class="field">
+                <label for="qaGServing">grams per serving (optional)</label>
+                <input id="qaGServing" type="number" min="0" step="0.1" placeholder="if you use “serving”" />
+              </div>
+            </div>
+            <div class="row" style="margin-top:12px">
+              <button class="btn" id="btnQuickAddIngredientSubmit" type="button">➕ Add ingredient</button>
+              <button class="btn secondary" id="btnQuickAddIngredientCancel" type="button">Cancel</button>
+            </div>
+            <div class="footerNote" id="quickAddIngredientStatus">Enter details, then click Add ingredient.</div>
           </div>
         </div>
       </div>
@@ -1570,6 +1645,9 @@ function refreshAdminUI(){
 function setEditItemStatus(msg){
   el("editItemStatusLine").textContent = msg;
 }
+function setQuickAddIngredientStatus(msg){
+  el("quickAddIngredientStatus").textContent = msg;
+}
 
 function showAuthChooser(){
   el("authChoicePane").classList.remove("hidden");
@@ -1781,6 +1859,25 @@ function openQuickSearch(){
   el("modalQuickSearch").style.display = "flex";
   el("quickSearchMobile").value = state.quickSearch || "";
   renderQuickDb();
+}
+function closeQuickAddIngredient(){ el("modalQuickAddIngredient").style.display = "none"; }
+function resetQuickAddIngredientForm(){
+  el("qaIngName").value = "";
+  el("qaIngBase").value = "g";
+  el("qaIngKcal").value = "";
+  el("qaIngP").value = "";
+  el("qaIngC").value = "";
+  el("qaIngF").value = "";
+  el("qaGPiece").value = "";
+  el("qaGSlice").value = "";
+  el("qaGServing").value = "";
+  setQuickAddIngredientStatus("Enter details, then click Add ingredient.");
+}
+function openQuickAddIngredient(){
+  if(!isSignedIn()){ openAuth(); return; }
+  el("modalQuickAddIngredient").style.display = "flex";
+  resetQuickAddIngredientForm();
+  el("qaIngName").focus();
 }
 function closeEditItem(){
   el("modalEditItem").style.display = "none";
@@ -2825,6 +2922,7 @@ async function signOut(){
   }
   closeEditItem();
   closeQuickSearch();
+  closeQuickAddIngredient();
   closeAdmin();
   state.auth.currentUserId = null;
   state.auth.currentEmail = "";
@@ -2843,6 +2941,7 @@ async function signOut(){
 async function afterAuthChange(){
   closeEditItem();
   closeQuickSearch();
+  closeQuickAddIngredient();
   await loadAll();
   await refreshAdminAccess();
   state.currentDate = todayISO();
@@ -2888,6 +2987,44 @@ function openIngredients(){
   renderIngredientsModalTable();
 }
 function closeIngredients(){ el("modalIngredients").style.display = "none"; }
+
+function upsertIngredientByValues(payload){
+  const nameRaw = String(payload?.nameRaw || "").trim();
+  if(!nameRaw) return { ok:false, message:"Enter an ingredient name." };
+
+  const base = String(payload?.base || "");
+  if(base !== "g" && base !== "ml") return { ok:false, message:"Select a valid base." };
+
+  const kcal = safeNum(payload?.kcal, NaN);
+  const p = safeNum(payload?.p, NaN);
+  const c = safeNum(payload?.c, NaN);
+  const f = safeNum(payload?.f, NaN);
+  if(!Number.isFinite(kcal) || kcal < 0) return { ok:false, message:"Enter a valid kcal/100." };
+  if(!Number.isFinite(p) || p < 0 || !Number.isFinite(c) || c < 0 || !Number.isFinite(f) || f < 0){
+    return { ok:false, message:"Enter valid macros (P/C/F) per 100." };
+  }
+
+  const gramsPerPiece = safeNum(payload?.gramsPerPiece, NaN);
+  const gramsPerSlice = safeNum(payload?.gramsPerSlice, NaN);
+  const gramsPerServing = safeNum(payload?.gramsPerServing, NaN);
+
+  const key = normalizeName(nameRaw);
+  state.ingredients[key] = {
+    name: nameRaw,
+    base,
+    per100: { kcal, p, c, f },
+    gramsPerPiece: Number.isFinite(gramsPerPiece) && gramsPerPiece > 0 ? gramsPerPiece : null,
+    gramsPerSlice: Number.isFinite(gramsPerSlice) && gramsPerSlice > 0 ? gramsPerSlice : null,
+    gramsPerServing: Number.isFinite(gramsPerServing) && gramsPerServing > 0 ? gramsPerServing : null,
+  };
+
+  saveIngredients();
+  renderQuickDb();
+  renderIngredientsModalTable();
+  if(selectedKey === key) setUnitOptionsForKey(key);
+  renderCurrentDate();
+  return { ok:true, key };
+}
 
 function renderIngredientsModalTable(){
   const body = el("dbBody");
@@ -3555,44 +3692,18 @@ function bindEvents(){
 
   el("btnSaveIngredient").addEventListener("click", () => {
     if(!isSignedIn()){ openAuth(); return; }
-    const nameRaw = el("ingName").value.trim();
-    if(!nameRaw){ alert("Enter an ingredient name."); return; }
-
-    const base = el("ingBase").value;
-    if(base !== "g" && base !== "ml"){ alert("Select a base."); return; }
-
-    const kcal = safeNum(el("ingKcal").value, NaN);
-    const p = safeNum(el("ingP").value, NaN);
-    const c = safeNum(el("ingC").value, NaN);
-    const f = safeNum(el("ingF").value, NaN);
-    if(!Number.isFinite(kcal) || kcal < 0) { alert("Enter a valid kcal/100."); return; }
-    if(!Number.isFinite(p) || p < 0 || !Number.isFinite(c) || c < 0 || !Number.isFinite(f) || f < 0) {
-      alert("Enter valid macros (P/C/F) per 100.");
-      return;
-    }
-
-    const gramsPerPiece = safeNum(el("gPiece").value, NaN);
-    const gramsPerSlice = safeNum(el("gSlice").value, NaN);
-    const gramsPerServing = safeNum(el("gServing").value, NaN);
-
-    const key = normalizeName(nameRaw);
-    state.ingredients[key] = {
-      name: nameRaw,
-      base,
-      per100: { kcal, p, c, f },
-      gramsPerPiece: Number.isFinite(gramsPerPiece) && gramsPerPiece > 0 ? gramsPerPiece : null,
-      gramsPerSlice: Number.isFinite(gramsPerSlice) && gramsPerSlice > 0 ? gramsPerSlice : null,
-      gramsPerServing: Number.isFinite(gramsPerServing) && gramsPerServing > 0 ? gramsPerServing : null,
-    };
-
-    saveIngredients();
-    renderQuickDb();
-    renderIngredientsModalTable();
-
-    // if this ingredient was selected, update unit list
-    if(selectedKey === key) setUnitOptionsForKey(key);
-
-    renderCurrentDate();
+    const result = upsertIngredientByValues({
+      nameRaw: el("ingName").value,
+      base: el("ingBase").value,
+      kcal: el("ingKcal").value,
+      p: el("ingP").value,
+      c: el("ingC").value,
+      f: el("ingF").value,
+      gramsPerPiece: el("gPiece").value,
+      gramsPerSlice: el("gSlice").value,
+      gramsPerServing: el("gServing").value,
+    });
+    if(!result.ok){ alert(result.message); return; }
     alert("Ingredient saved.");
   });
 
@@ -3607,6 +3718,39 @@ function bindEvents(){
     el("gSlice").value = "";
     el("gServing").value = "";
     el("ingName").focus();
+  });
+
+  // Quick add ingredient modal
+  el("btnQuickAddIngredient").addEventListener("click", openQuickAddIngredient);
+  el("btnQuickAddIngredientMobile").addEventListener("click", openQuickAddIngredient);
+  el("btnCloseQuickAddIngredient").addEventListener("click", closeQuickAddIngredient);
+  el("btnQuickAddIngredientCancel").addEventListener("click", closeQuickAddIngredient);
+  el("modalQuickAddIngredient").addEventListener("click", (e) => { if(e.target === el("modalQuickAddIngredient")) closeQuickAddIngredient(); });
+  el("btnQuickAddIngredientSubmit").addEventListener("click", () => {
+    if(!isSignedIn()){ openAuth(); return; }
+    const result = upsertIngredientByValues({
+      nameRaw: el("qaIngName").value,
+      base: el("qaIngBase").value,
+      kcal: el("qaIngKcal").value,
+      p: el("qaIngP").value,
+      c: el("qaIngC").value,
+      f: el("qaIngF").value,
+      gramsPerPiece: el("qaGPiece").value,
+      gramsPerSlice: el("qaGSlice").value,
+      gramsPerServing: el("qaGServing").value,
+    });
+    if(!result.ok){
+      setQuickAddIngredientStatus(result.message);
+      return;
+    }
+    setQuickAddIngredientStatus("Ingredient added to quick search database.");
+    closeQuickAddIngredient();
+  });
+  el("qaGServing").addEventListener("keydown", (e) => {
+    if(e.key === "Enter"){
+      e.preventDefault();
+      el("btnQuickAddIngredientSubmit").click();
+    }
   });
 
   // History modal
@@ -3641,18 +3785,6 @@ function bindEvents(){
       e.preventDefault();
       saveEditedItem();
     }
-  });
-
-  // Export/Import
-  el("btnExport").addEventListener("click", exportData);
-  el("btnImport").addEventListener("click", () => {
-    if(!isSignedIn()){ openAuth(); return; }
-    el("importFile").click();
-  });
-  el("importFile").addEventListener("change", (e) => {
-    const file = e.target.files && e.target.files[0];
-    if(file) importDataFromFile(file);
-    e.target.value = "";
   });
 
   // Reset selected day (history modal)
