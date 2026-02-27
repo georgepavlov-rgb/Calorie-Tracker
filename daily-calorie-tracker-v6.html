@@ -436,7 +436,7 @@
       max-height: 360px;
     }
     .consumedTableWrap table{
-      min-width: 920px;
+      min-width: 760px;
     }
 
     .metric.over{
@@ -471,6 +471,10 @@
       padding:7px 10px;
       font-size:12px;
       white-space:nowrap;
+    }
+    .inlineConsumedActions{
+      margin-top:6px;
+      justify-content:flex-start;
     }
     .consumedActionBtn{
       padding:6px 8px !important;
@@ -985,7 +989,6 @@
                   <th class="tdRight">P</th>
                   <th class="tdRight">C</th>
                   <th class="tdRight">F</th>
-                  <th class="tdRight">Actions</th>
                 </tr>
               </thead>
               <tbody id="consumedBody"></tbody>
@@ -2862,7 +2865,7 @@ function renderConsumedTable(){
   const entry = ensureEntry(state.currentDate);
 
   if(!entry.items.length){
-    body.innerHTML = `<tr><td colspan="8" class="smallMuted">No items yet. Add something above.</td></tr>`;
+    body.innerHTML = `<tr><td colspan="7" class="smallMuted">No items yet. Add something above.</td></tr>`;
     return;
   }
 
@@ -2873,18 +2876,19 @@ function renderConsumedTable(){
     return `
       <tr>
         <td><span class="badge">${escapeHtml(mealLabel(it.meal))}</span></td>
-        <td><b>${escapeHtml(name)}</b><div class="smallMuted">${escapeHtml(it.ingKey)}</div></td>
+        <td>
+          <b>${escapeHtml(name)}</b>
+          <div class="smallMuted">${escapeHtml(it.ingKey)}</div>
+          <div class="itemActions inlineConsumedActions">
+            <button class="btn secondary consumedActionBtn" data-edit="${idx}">Edit consumed item</button>
+            <button class="btn danger consumedActionBtn" data-del="${idx}">Delete item</button>
+          </div>
+        </td>
         <td class="tdRight">${escapeHtml(amountStr)}</td>
         <td class="tdRight">${r ? round0(r.kcal) : "—"}</td>
         <td class="tdRight">${r ? round0(r.p) : "—"}</td>
         <td class="tdRight">${r ? round0(r.c) : "—"}</td>
         <td class="tdRight">${r ? round0(r.f) : "—"}</td>
-        <td class="tdRight">
-          <div class="itemActions">
-            <button class="btn secondary consumedActionBtn" data-edit="${idx}">Edit consumed item</button>
-            <button class="btn danger consumedActionBtn" data-del="${idx}">Delete item</button>
-          </div>
-        </td>
       </tr>
     `;
   }).join("");
@@ -2952,7 +2956,7 @@ function renderCurrentDate(){
     el("miniConsumed").innerHTML = `<div class="smallMuted">Sign in to view consumed items.</div>`;
     el("statusPill").className = "pill warn";
     el("statusPill").textContent = "locked";
-    el("consumedBody").innerHTML = `<tr><td colspan="8" class="smallMuted">Sign in to view your data.</td></tr>`;
+    el("consumedBody").innerHTML = `<tr><td colspan="7" class="smallMuted">Sign in to view your data.</td></tr>`;
     el("quickDbBody").innerHTML = `<tr><td colspan="6" class="smallMuted">Sign in to view ingredient data.</td></tr>`;
     el("quickDbBodyMobile").innerHTML = `<tr><td colspan="6" class="smallMuted">Sign in to view ingredient data.</td></tr>`;
     el("defaultGoalLine").textContent = "";
