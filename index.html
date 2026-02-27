@@ -898,15 +898,6 @@
                 <label for="foodPhotoInput">Food picture</label>
                 <input id="foodPhotoInput" type="file" accept="image/*" capture="environment" />
               </div>
-              <div class="field">
-                <label for="photoMealSelect">Default meal</label>
-                <select id="photoMealSelect">
-                  <option value="breakfast">Breakfast</option>
-                  <option value="lunch">Lunch</option>
-                  <option value="dinner">Dinner</option>
-                  <option value="snack">Snack</option>
-                </select>
-              </div>
             </div>
             <div class="aiTextBar">
               <div class="field">
@@ -2877,7 +2868,7 @@ function pushPhotoDraft(row){
   if(!row || !row.ingKey || !state.ingredients[row.ingKey]) return;
   const ing = state.ingredients[row.ingKey];
   state.photoDrafts.push({
-    meal: row.meal || el("photoMealSelect").value,
+    meal: row.meal || "snack",
     ingKey: row.ingKey,
     amount: clamp(safeNum(row.amount, 100), 0.1, 5000),
     unit: row.unit || defaultUnitForIngredient(ing)
@@ -3009,9 +3000,18 @@ function resolveAiIngredientKey(rawName){
   return byReverseContains || null;
 }
 
-function mapAiItemsToRows(items){
+function inferMealFromText(text){
+  const t = normalizeName(text || "");
+  if(!t) return "snack";
+  if(/\b(breakfast|morning|brunch)\b/.test(t)) return "breakfast";
+  if(/\b(lunch|afternoon)\b/.test(t)) return "lunch";
+  if(/\b(dinner|supper|evening)\b/.test(t)) return "dinner";
+  if(/\b(snack|dessert)\b/.test(t)) return "snack";
+  return "snack";
+}
+
+function mapAiItemsToRows(items, defaultMeal = "snack"){
   const rows = [];
-  const defaultMeal = el("photoMealSelect").value;
   for(const item of (Array.isArray(items) ? items : [])){
     const ingKey = resolveAiIngredientKey(item.ingredient);
     if(!ingKey) continue;
@@ -3050,7 +3050,7 @@ function fallbackPhotoGuess(fileName){
   for(const [k, ing] of Object.entries(state.ingredients)){
     const n = normalizeName(ing.name);
     if(words.some(w => w.length > 2 && n.includes(w))){
-      hits.push({ meal: el("photoMealSelect").value, ingKey: k, amount: ing.base === "ml" ? 250 : 150, unit: defaultUnitForIngredient(ing) });
+      hits.push({ meal: "snack", ingKey: k, amount: ing.base === "ml" ? 250 : 150, unit: defaultUnitForIngredient(ing) });
       if(hits.length >= 4) break;
     }
   }
@@ -3058,20 +3058,21 @@ function fallbackPhotoGuess(fileName){
     const firstKey = Object.keys(state.ingredients)[0];
     if(firstKey){
       const ing = state.ingredients[firstKey];
-      hits.push({ meal: el("photoMealSelect").value, ingKey: firstKey, amount: ing.base === "ml" ? 250 : 150, unit: defaultUnitForIngredient(ing) });
+      hits.push({ meal: "snack", ingKey: firstKey, amount: ing.base === "ml" ? 250 : 150, unit: defaultUnitForIngredient(ing) });
     }
   }
   return hits;
 }
 
 function fallbackTextGuess(mealText){
+  const inferredMeal = inferMealFromText(mealText);
   const words = normalizeName(mealText).split(/[^a-z0-9]+/).filter(w => w.length > 2);
   const hits = [];
   for(const [k, ing] of Object.entries(state.ingredients)){
     const n = normalizeName(ing.name);
     if(words.some(w => n.includes(w))){
       hits.push({
-        meal: el("photoMealSelect").value,
+        meal: inferredMeal,
         ingKey: k,
         amount: ing.base === "ml" ? 250 : 120,
         unit: defaultUnitForIngredient(ing)
@@ -3082,71 +3083,35 @@ function fallbackTextGuess(mealText){
   return hits;
 }
 
-async function analyzePhotoWithOpenAI(dataUrl){
-  const apiKey = getOpenAiApiKey();
-  if(!apiKey) return { ok:false, reason:"missing_key" };
-
-  const ingredients = Object.values(state.ingredients).map(x => x.name).sort((a,b)=> a.localeCompare(b));
-  const ingredientList = ingredients.join(", ");
-  const meal = el("photoMealSelect").value;
-  const prompt = [
-    "Identify foods in this plate image.",
-    "Map results only to ingredient names from this list:",
-    ingredientList,
-    "Return strict JSON only with this schema:",
-    '{"items":[{"ingredient":"exact name from list","amount":number,"unit":"g|ml|piece|slice|serving","meal":"breakfast|lunch|dinner|snack"}]}',
-    `Use "${meal}" as meal if unsure.`
-  ].join("\n");
-
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      temperature: 0.1,
-      messages: [
-        { role:"system", content:"You are a food recognition assistant. Output valid JSON only." },
-        { role:"user", content: [
-          { type:"text", text: prompt },
-          { type:"image_url", image_url: { url: dataUrl } }
-        ] }
-      ]
-    })
-  });
-
-  if(!res.ok){
-    return { ok:false, reason:`api_error_${res.status}` };
-  }
-  const payload = await res.json();
-  const text = payload?.choices?.[0]?.message?.content || "";
-  const parsed = tryParseJsonPayload(text);
-  if(!parsed || !Array.isArray(parsed.items)) return { ok:false, reason:"parse_error" };
-  return { ok:true, items: parsed.items };
-}
-
-async function analyzeMealTextWithOpenAI(mealText){
+async function analyzeInteractiveInputWithOpenAI(mealText, dataUrl){
   const apiKey = getOpenAiApiKey();
   if(!apiKey) return { ok:false, reason:"missing_key" };
   const cleanText = String(mealText || "").trim();
-  if(!cleanText) return { ok:false, reason:"empty_text" };
+  if(!cleanText && !dataUrl) return { ok:false, reason:"empty_input" };
 
   const ingredients = Object.values(state.ingredients).map(x => x.name).sort((a,b)=> a.localeCompare(b));
   const ingredientList = ingredients.join(", ");
-  const meal = el("photoMealSelect").value;
+  const inferredMeal = inferMealFromText(cleanText);
+  const hasImage = !!dataUrl;
+  const hasText = !!cleanText;
   const prompt = [
-    "Convert this meal description into tracker rows.",
+    "Analyze this meal input and convert it into tracker rows.",
+    hasImage && hasText ? "Use BOTH the meal text and the picture together to decide the foods and amounts." : "",
+    hasImage && !hasText ? "Use the picture to identify foods and estimate amounts." : "",
+    hasText ? "Use the meal text to infer foods, amounts, and meal type." : "",
     "Map rows only to ingredient names from this list:",
     ingredientList,
-    `User text: ${cleanText}`,
+    hasText ? `User text: ${cleanText}` : "User text: (none)",
     "Return strict JSON only with this schema:",
     '{"items":[{"ingredient":"exact name from list","amount":number,"unit":"g|ml|piece|slice|serving","meal":"breakfast|lunch|dinner|snack"}]}',
-    `Use "${meal}" as meal if unsure.`,
+    `If unsure about meal, default to "${inferredMeal}".`,
     "Estimate missing amounts conservatively."
-  ].join("\n");
+  ].filter(Boolean).join("\n");
 
+  const userContent = [{ type:"text", text: prompt }];
+  if(hasImage){
+    userContent.push({ type:"image_url", image_url: { url: dataUrl } });
+  }
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -3157,8 +3122,8 @@ async function analyzeMealTextWithOpenAI(mealText){
       model: "gpt-4o-mini",
       temperature: 0.1,
       messages: [
-        { role:"system", content:"You map food text to a fixed ingredient list. Output valid JSON only." },
-        { role:"user", content: prompt }
+        { role:"system", content:"You map food inputs to a fixed ingredient list. Output valid JSON only." },
+        { role:"user", content: userContent }
       ]
     })
   });
@@ -3933,6 +3898,7 @@ function bindEvents(){
     if(!isSignedIn()){ openAuth(); return; }
     const file = el("foodPhotoInput").files && el("foodPhotoInput").files[0];
     const mealText = String(el("aiMealTextInput").value || "").trim();
+    const inferredMeal = inferMealFromText(mealText);
     if(!file && !mealText){
       el("photoStatus").textContent = "Add a picture, text, or both, then click Analyze text/picture.";
       return;
@@ -3951,26 +3917,23 @@ function bindEvents(){
     try{
       el("photoStatus").textContent = "Analyzing text/picture...";
 
+      let dataUrl = "";
       if(file){
-        const dataUrl = await toDataUrl(file);
+        dataUrl = await toDataUrl(file);
         el("photoPreview").src = dataUrl;
         el("photoPreview").style.display = "block";
-        const aiPhoto = await analyzePhotoWithOpenAI(dataUrl);
-        const photoRows = aiPhoto.ok ? mapAiItemsToRows(aiPhoto.items) : [];
-        if(photoRows.length){
-          autoRows.push(...photoRows);
-        } else {
-          reviewRows.push(...fallbackPhotoGuess(file.name));
-        }
       }
 
-      if(mealText){
-        const aiText = await analyzeMealTextWithOpenAI(mealText);
-        const textRows = aiText.ok ? mapAiItemsToRows(aiText.items) : [];
-        if(textRows.length){
-          autoRows.push(...textRows);
-        } else {
+      const ai = await analyzeInteractiveInputWithOpenAI(mealText, dataUrl);
+      const aiRows = ai.ok ? mapAiItemsToRows(ai.items, inferredMeal) : [];
+      if(aiRows.length){
+        autoRows.push(...aiRows);
+      } else {
+        if(mealText){
           autoRows.push(...fallbackTextGuess(mealText));
+        }
+        if(file){
+          reviewRows.push(...fallbackPhotoGuess(file.name).map((r) => ({ ...r, meal: inferredMeal })));
         }
       }
 
@@ -3997,7 +3960,7 @@ function bindEvents(){
         const addedTextFallback = appendRowsToEntry(fallbackTextRows, "interactive AI text fallback");
         if(addedTextFallback > 0) el("aiMealTextInput").value = "";
       }
-      if(file) fallbackPhotoGuess(file.name).forEach(pushPhotoDraft);
+      if(file) fallbackPhotoGuess(file.name).map((r) => ({ ...r, meal: inferredMeal })).forEach(pushPhotoDraft);
       renderPhotoDrafts();
       el("photoStatus").textContent = `Analysis failed (${err?.message || err}). Added editable suggestions.`;
     }
@@ -4013,7 +3976,7 @@ function bindEvents(){
     const firstKey = Object.keys(state.ingredients)[0];
     if(!firstKey) return;
     pushPhotoDraft({
-      meal: el("photoMealSelect").value,
+      meal: inferMealFromText(String(el("aiMealTextInput").value || "")),
       ingKey: firstKey,
       amount: state.ingredients[firstKey].base === "ml" ? 250 : 120,
       unit: defaultUnitForIngredient(state.ingredients[firstKey])
